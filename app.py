@@ -39,14 +39,14 @@ def build_strava_auth_url():
     return f"{STRAVA_AUTH_URL}?{urlencode(params)}"
 
 
-def upload_activity_to_strava(access_token, name):
+def upload_activity_to_strava(access_token, activity):
     payload = {
-        'name': name,
-        'type': 'Run',
+        'name': activity['name'],
+        'type': activity['type'],
         'start_date_local': datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-        'elapsed_time': 1800,
-        'distance': 5000,
-        'description': 'Uploaded from the endurance tracker shell',
+        'elapsed_time': int(activity.get('duration', 30) * 60),
+        'distance': int(activity.get('distance', 5.0) * 1609.34),
+        'description': activity.get('description', 'Uploaded from the endurance tracker shell'),
     }
     return requests.post(
         f'{STRAVA_API_URL}/activities',
@@ -72,25 +72,35 @@ def fetch_strava_activities(access_token):
 
 def page(title, body):
     messages = ''.join(
-        f'<p class="{category}">{message}</p>'
+        f'<div class="alert alert-{category}">{message}</div>'
         for category, message in get_flashed_messages(with_categories=True)
     )
     return render_template_string('''
         <!doctype html>
         <html>
-          <head><title>{{ title }}</title></head>
-          <body>
-            <h1>{{ title }}</h1>
-            <nav>
-              <a href="/">Home</a> |
-              <a href="/dashboard">Dashboard</a> |
-              <a href="/activities">Activities</a> |
-              <a href="/goals">Goals</a> |
-              <a href="/profile">Profile</a>
-            </nav>
-            <hr>
-            {{ messages | safe }}
-            {{ body | safe }}
+          <head>
+            <meta charset="utf-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1" />
+            <title>{{ title }}</title>
+            <link rel="stylesheet" href="/static/css/styles.css">
+          </head>
+          <body class="app-body">
+            <header class="site-header">
+              <div class="container site-header-inner">
+                <a class="site-logo" href="/">Endurance Tracker</a>
+                <nav class="site-nav">
+                  <a href="/">Home</a>
+                  <a href="/dashboard">Dashboard</a>
+                  <a href="/activities">Activities</a>
+                  <a href="/goals">Goals</a>
+                  <a href="/profile">Profile</a>
+                </nav>
+              </div>
+            </header>
+            <main class="page-content container">
+              {{ messages | safe }}
+              {{ body | safe }}
+            </main>
           </body>
         </html>
     ''', title=title, body=body, messages=messages)
@@ -272,6 +282,13 @@ def strava_sync():
         count += 1
 
     flash(f'Synced {count} activities from Strava.', 'success' if count else 'info')
+    return redirect(url_for('activities'))
+
+
+@app.route('/activity/delete/<activity_id>', methods=['POST'])
+def delete_activity(activity_id):
+    activity_items[:] = [item for item in activity_items if item.get('id') != activity_id]
+    flash('Activity deleted.', 'info')
     return redirect(url_for('activities'))
 
 
