@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard – Endurance Tracker{% endblock %}
+{% block content %}
+<div class="mb-4">
+  <h1 class="h2">Hello, {{ session.username }}.</h1>
+  <p class="text-muted">Your training summary and goals at a glance.</p>
+</div>
+<div class="row gy-4">
+  <div class="col-lg-8">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <div class="card p-3 shadow-sm h-100">
+          <h6>Total Run miles</h6>
+          <p class="display-6 mb-0">{{ stats.total_by_type['run'] }}</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card p-3 shadow-sm h-100">
+          <h6>Total Bike miles</h6>
+          <p class="display-6 mb-0">{{ stats.total_by_type['bike'] }}</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card p-3 shadow-sm h-100">
+          <h6>Total Swim miles</h6>
+          <p class="display-6 mb-0">{{ stats.total_by_type['swim'] }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="row g-3 mt-3">
+      <div class="col-md-6">
+        <div class="card p-3 shadow-sm h-100">
+          <h6>Total workouts</h6>
+          <p class="fs-3 mb-0">{{ stats.metrics['workouts'] }}</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card p-3 shadow-sm h-100">
+          <h6>Lifetime distance</h6>
+          <p class="fs-3 mb-0">{{ stats.metrics['total_distance'] }}</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card p-3 shadow-sm h-100">
+          <h6>Average pace</h6>
+          <p class="fs-3 mb-0">{{ stats.avg_pace_formatted }}</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card p-3 shadow-sm h-100">
+          <h6>Lifetime workouts</h6>
+          <p class="fs-3 mb-0">{{ stats.metrics['workouts'] }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="row g-3 mt-3">
+      <div class="col-12">
+        <div class="card p-3 shadow-sm">
+          <div class="d-flex align-items-center justify-content-between">
+            <div>
+              <h5>Weekly mileage</h5>
+              <p class="text-muted mb-0">Track progress for the past week.</p>
+            </div>
+          </div>
+          <canvas id="weeklyChart" height="120"></canvas>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="card p-3 shadow-sm">
+          <div class="d-flex align-items-center justify-content-between">
+            <div>
+              <h5>Monthly mileage</h5>
+              <p class="text-muted mb-0">Your long-term volume trend.</p>
+            </div>
+          </div>
+          <canvas id="monthlyChart" height="120"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card p-3 shadow-sm mb-3">
+      <h5>Current goals</h5>
+      {% if goals %}
+        {% for goal in goals %}
+        <div class="goal-card mb-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="mb-1">{{ goal.title }}</h6>
+              <p class="mb-1 text-muted">{{ goal.description }}</p>
+            </div>
+            {% if goal.completed %}
+            <span class="badge bg-success">Complete</span>
+            {% endif %}
+          </div>
+          <div class="progress mb-2" style="height: 12px;">
+            <div class="progress-bar bg-info" role="progressbar" style="width: {{ goal.progress }}%">{{ goal.progress }}%</div>
+          </div>
+          <p class="mb-0 small text-muted">{{ goal.message }}</p>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p class="text-muted">No active goals yet. Add one to get started.</p>
+      {% endif %}
+    </div>
+    <div class="card p-3 shadow-sm mb-3">
+      <h5>Activity distribution</h5>
+      <canvas id="distributionChart" height="200"></canvas>
+    </div>
+    <div class="card p-3 shadow-sm">
+      <h5>Recent activities</h5>
+      {% if stats.recent %}
+      <ul class="list-group list-group-flush">
+        {% for activity in stats.recent %}
+        <li class="list-group-item py-3">
+          <strong>{{ activity['activity_type'].capitalize() }}</strong> • {{ activity['distance'] }} mi • {{ activity['date_time'][:10] }}
+          <div class="small text-muted">{{ activity['notes'] or 'No notes' }}</div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-muted mb-0">No activities logged yet.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+window.dashboardDataUrl = '{{ url_for('api_stats') }}';
+</script>
+{% endblock %}
