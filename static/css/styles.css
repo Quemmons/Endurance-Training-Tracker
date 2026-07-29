@@ -1,6 +1,126 @@
 body {
   min-height: 100vh;
+  font-family: Arial, sans-serif;
+  margin: 0;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+  color: #111827;
 }
+
+h1 {
+  margin: 0;
+  padding: 1.5rem 2rem 0.5rem;
+}
+
+nav {
+  padding: 0 2rem 1.2rem;
+}
+
+nav a {
+  color: #1d4ed8;
+  margin-right: 1rem;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+main {
+  padding: 1rem 2rem 2rem;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.panel {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 1.2rem;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  margin-bottom: 1rem;
+}
+
+.panel--tight {
+  padding-top: 1rem;
+}
+
+.activity-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.activity-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-weight: 600;
+}
+
+.activity-form input {
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+}
+
+.checkbox-row {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+button {
+  border: none;
+  border-radius: 999px;
+  padding: 0.65rem 1rem;
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+}
+
+.activity-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.activity-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 0.9rem;
+}
+
+.activity-card__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.activity-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  color: #475569;
+  font-size: 0.95rem;
+}
+
+.activity-card__actions {
+  margin-top: 0.65rem;
+}
+
+.activity-tag {
+  background: #dbeafe;
+  color: #1d4ed8;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+
+.empty-state {
+  color: #64748b;
+  font-style: italic;
+}
+
 .alerts {
   position: sticky;
   top: 1rem;

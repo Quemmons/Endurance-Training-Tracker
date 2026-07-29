@@ -39,14 +39,14 @@ def build_strava_auth_url():
     return f"{STRAVA_AUTH_URL}?{urlencode(params)}"
 
 
-def upload_activity_to_strava(access_token, activity):
+def upload_activity_to_strava(access_token, name):
     payload = {
-        'name': activity['name'],
-        'type': activity['type'],
+        'name': name,
+        'type': 'Run',
         'start_date_local': datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-        'elapsed_time': int(activity.get('duration', 30) * 60),
-        'distance': int(activity.get('distance', 5.0) * 1609.34),
-        'description': activity.get('description', 'Uploaded from the endurance tracker shell'),
+        'elapsed_time': 1800,
+        'distance': 5000,
+        'description': 'Uploaded from the endurance tracker shell',
     }
     return requests.post(
         f'{STRAVA_API_URL}/activities',
@@ -72,7 +72,7 @@ def fetch_strava_activities(access_token):
 
 def page(title, body):
     messages = ''.join(
-        f'<div class="alert alert-{category}">{message}</div>'
+        f'<p class="{category}">{message}</p>'
         for category, message in get_flashed_messages(with_categories=True)
     )
     return render_template_string('''
@@ -84,23 +84,18 @@ def page(title, body):
             <title>{{ title }}</title>
             <link rel="stylesheet" href="/static/css/styles.css">
           </head>
-          <body class="app-body">
-            <header class="site-header">
-              <div class="container site-header-inner">
-                <a class="site-logo" href="/">Endurance Tracker</a>
-                <nav class="site-nav">
-                  <a href="/">Home</a>
-                  <a href="/dashboard">Dashboard</a>
-                  <a href="/activities">Activities</a>
-                  <a href="/goals">Goals</a>
-                  <a href="/profile">Profile</a>
-                </nav>
-              </div>
-            </header>
-            <main class="page-content container">
-              {{ messages | safe }}
-              {{ body | safe }}
-            </main>
+          <body>
+            <h1>Endurance Tracker</h1>
+            <nav>
+              <a href="/">Home</a> |
+              <a href="/dashboard">Dashboard</a> |
+              <a href="/activities">Activities</a> |
+              <a href="/goals">Goals</a> |
+              <a href="/profile">Profile</a>
+            </nav>
+            <hr>
+            {{ messages | safe }}
+            {{ body | safe }}
           </body>
         </html>
     ''', title=title, body=body, messages=messages)
@@ -127,14 +122,34 @@ def dashboard():
 @app.route('/activities', methods=['GET', 'POST'])
 def activities():
     if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'delete' and request.form.get('activity_index') is not None:
+            try:
+                index = int(request.form.get('activity_index'))
+            except ValueError:
+                index = -1
+            if 0 <= index < len(activity_items):
+                del activity_items[index]
+                flash('Activity removed.', 'info')
+            return redirect(url_for('activities'))
+
         name = request.form.get('name', '').strip() or 'Workout'
+        activity_type = request.form.get('type', 'Run').strip() or 'Run'
+        distance = request.form.get('distance', '0').strip() or '0'
+        duration = request.form.get('duration', '').strip() or '0'
         upload_requested = request.form.get('upload_to_strava') == '1'
+
+        try:
+            distance_value = float(distance)
+        except ValueError:
+            distance_value = 0.0
 
         activity_items.append({
             'name': name,
-            'type': 'Run',
+            'type': activity_type,
             'start_date': datetime.utcnow().strftime('%Y-%m-%d %H:%M'),
-            'distance': 5.0,
+            'distance': round(distance_value, 2),
+            'duration': duration,
             'source': 'local',
             'strava_id': None,
         })
@@ -168,26 +183,77 @@ def activities():
                 'strava_id': strava_id,
             })
 
-    def format_activity(a):
-        distance = f"{a.get('distance', 0)} mi" if a.get('distance') is not None else 'unknown'
-        return f"{a.get('name')} — {a.get('type')} — {a.get('start_date')} — {distance}"
-
-    rows = ''.join(
-        f'<li>{format_activity(item)}</li>' for item in activity_items
-    ) or '<li>No activities yet.</li>'
+    rows = []
+    for index, item in enumerate(activity_items):
+        activity_name = item.get('name', 'Workout')
+        activity_type = item.get('type', 'Run')
+        activity_date = item.get('start_date', 'Unknown date')
+        distance = item.get('distance', 0)
+        duration = item.get('duration', 'n/a')
+        source = item.get('source', 'local')
+        rows.append(f"""
+            <div class="activity-card">
+              <div class="activity-card__top">
+                <strong>{activity_name}</strong>
+                <span class="activity-tag">{activity_type}</span>
+              </div>
+              <div class="activity-card__meta">
+                <span>Date: {activity_date}</span>
+                <span>Distance: {distance} mi</span>
+                <span>Duration: {duration} min</span>
+                <span>Source: {source}</span>
+              </div>
+              <form method="post" class="activity-card__actions">
+                <input type="hidden" name="activity_index" value="{index}">
+                <input type="hidden" name="action" value="delete">
+                <button type="submit">Delete</button>
+              </form>
+            </div>
+        """)
 
     connect_link = '<a href="/strava/connect">Connect Strava</a>' if not strava_connected else '<a href="/strava/disconnect">Disconnect Strava</a>'
     sync_link = '<a href="/strava/sync">Sync from Strava</a>' if strava_connected else ''
 
     body = f'''
-        <form method="post">
-          <input name="name" placeholder="Activity name" />
-          <label><input type="checkbox" name="upload_to_strava" value="1" /> Upload to Strava</label>
-          <button type="submit">Save activity</button>
-        </form>
-        <p>{connect_link} {sync_link}</p>
-        <ul>{rows}</ul>
-        <p>TODO: wire this up to activity creation, editing, and deletion.</p>
+        <section class="panel">
+          <h2>Add an activity</h2>
+          <form method="post" class="activity-form">
+            <label>
+              Name
+              <input type="text" name="name" placeholder="Morning run" required>
+            </label>
+            <label>
+              Type
+              <input type="text" name="type" value="Run">
+            </label>
+            <label>
+              Distance (mi)
+              <input type="number" name="distance" step="0.1" value="5">
+            </label>
+            <label>
+              Duration (min)
+              <input type="number" name="duration" step="1" value="30">
+            </label>
+            <label class="checkbox-row">
+              <input type="checkbox" name="upload_to_strava" value="1">
+              Upload to Strava
+            </label>
+            <button type="submit">Save activity</button>
+          </form>
+        </section>
+
+        <section class="panel panel--tight">
+          <div class="activity-toolbar">
+            <h2>Recent activities</h2>
+            <div>
+              {connect_link}
+              {sync_link}
+            </div>
+          </div>
+          <div class="activity-list">
+            {''.join(rows) if rows else '<p class="empty-state">No activities yet.</p>'}
+          </div>
+        </section>
     '''
     return page('Activities', body)
 
@@ -282,13 +348,6 @@ def strava_sync():
         count += 1
 
     flash(f'Synced {count} activities from Strava.', 'success' if count else 'info')
-    return redirect(url_for('activities'))
-
-
-@app.route('/activity/delete/<activity_id>', methods=['POST'])
-def delete_activity(activity_id):
-    activity_items[:] = [item for item in activity_items if item.get('id') != activity_id]
-    flash('Activity deleted.', 'info')
     return redirect(url_for('activities'))
 
 
