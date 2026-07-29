@@ -55,6 +55,18 @@ def upload_activity_to_strava(access_token, name):
     )
 
 
+def fetch_strava_activities(access_token):
+    response = requests.get(
+        f'{STRAVA_API_URL}/athlete/activities',
+        headers={'Authorization': f'Bearer {access_token}'},
+        params={'per_page': 10},
+        timeout=30,
+    )
+    if not response.ok:
+        return []
+    return response.json()
+
+
 def page(title, body):
     messages = ''.join(
         f'<p class="{category}">{message}</p>'
@@ -120,6 +132,12 @@ def activities():
                 flash('Saved locally.', 'info')
 
         return redirect(url_for('activities'))
+
+    if 'strava_access_token' in session:
+        for item in fetch_strava_activities(session['strava_access_token']):
+            title = item.get('name') or 'Strava activity'
+            if title not in activity_items:
+                activity_items.append(title)
 
     rows = ''.join(
         f'<li>{item}</li>' for item in activity_items
