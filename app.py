@@ -1,17 +1,65 @@
-from flask import Flask, flash, redirect, render_template_string, request, url_for
-
-
+from datetime import datetime
 import os
+import secrets
+from urllib.parse import urlencode
+
+import requests
+from flask import Flask, flash, get_flashed_messages, redirect, render_template_string, request, session, url_for
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'dev-secret-change-me'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
 
 # In-memory placeholder data. Replace this with a database later.
 activity_items = []
 goal_items = []
 
+STRAVA_CLIENT_ID = os.environ.get('STRAVA_CLIENT_ID', '260628')
+STRAVA_CLIENT_SECRET = os.environ.get('STRAVA_CLIENT_SECRET', '87e49e77589f4ff35de2472bd4820b1af8fe347b')
+STRAVA_REDIRECT_URI = os.environ.get('STRAVA_REDIRECT_URI', 'https://milestones-ktz9.onrender.com/strava/callback')
+STRAVA_AUTH_URL = 'https://www.strava.com/oauth/authorize'
+STRAVA_TOKEN_URL = 'https://www.strava.com/api/v3/oauth/token'
+STRAVA_API_URL = 'https://www.strava.com/api/v3'
+
+
+def is_strava_configured():
+    return bool(STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET)
+
+
+def build_strava_auth_url():
+    state = secrets.token_hex(16)
+    session['strava_oauth_state'] = state
+    params = {
+        'client_id': STRAVA_CLIENT_ID,
+        'redirect_uri': STRAVA_REDIRECT_URI,
+        'response_type': 'code',
+        'scope': 'activity:write',
+        'state': state,
+    }
+    return f"{STRAVA_AUTH_URL}?{urlencode(params)}"
+
+
+def upload_activity_to_strava(access_token, name):
+    payload = {
+        'name': name,
+        'type': 'Run',
+        'start_date_local': datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
+        'elapsed_time': 1800,
+        'distance': 5000,
+        'description': 'Uploaded from the endurance tracker shell',
+    }
+    return requests.post(
+        f'{STRAVA_API_URL}/activities',
+        headers={'Authorization': f'Bearer {access_token}'},
+        data=payload,
+        timeout=30,
+    )
+
 
 def page(title, body):
+    messages = ''.join(
+        f'<p class="{category}">{message}</p>'
+        for category, message in get_flashed_messages(with_categories=True)
+    )
     return render_template_string('''
         <!doctype html>
         <html>
@@ -26,10 +74,11 @@ def page(title, body):
               <a href="/profile">Profile</a>
             </nav>
             <hr>
+            {{ messages | safe }}
             {{ body | safe }}
           </body>
         </html>
-    ''', title=title, body=body)
+    ''', title=title, body=body, messages=messages)
 
 
 @app.route('/')
@@ -53,19 +102,39 @@ def dashboard():
 @app.route('/activities', methods=['GET', 'POST'])
 def activities():
     if request.method == 'POST':
-        # TODO: validate and save a new activity here.
-        flash('Activity saving is not implemented yet.', 'info')
+        name = request.form.get('name', '').strip() or 'Workout'
+        upload_requested = request.form.get('upload_to_strava') == '1'
+
+        activity_items.append(name)
+
+        if upload_requested and 'strava_access_token' in session:
+            response = upload_activity_to_strava(session['strava_access_token'], name)
+            if response.ok:
+                flash('Saved locally and uploaded to Strava.', 'success')
+            else:
+                flash(f'Saved locally, but Strava upload failed: {response.text[:120]}', 'warning')
+        else:
+            if upload_requested:
+                flash('Saved locally. Connect Strava first to upload.', 'info')
+            else:
+                flash('Saved locally.', 'info')
+
         return redirect(url_for('activities'))
 
     rows = ''.join(
         f'<li>{item}</li>' for item in activity_items
     ) or '<li>No activities yet.</li>'
 
+    strava_connected = 'strava_access_token' in session
+    connect_link = '<a href="/strava/connect">Connect Strava</a>' if not strava_connected else '<a href="/strava/disconnect">Disconnect Strava</a>'
+
     body = f'''
         <form method="post">
           <input name="name" placeholder="Activity name" />
-          <button type="submit">Add placeholder activity</button>
+          <label><input type="checkbox" name="upload_to_strava" value="1" /> Upload to Strava</label>
+          <button type="submit">Save activity</button>
         </form>
+        <p>{connect_link}</p>
         <ul>{rows}</ul>
         <p>TODO: wire this up to activity creation, editing, and deletion.</p>
     '''
@@ -87,15 +156,68 @@ def goals():
 
 @app.route('/profile')
 def profile():
-    body = '''
+    strava_status = 'Connected' if 'strava_access_token' in session else 'Not connected'
+    body = f'''
         <p>Profile placeholder.</p>
+        <p>Strava status: {strava_status}</p>
         <p>TODO: add account info, authentication, and optional Strava connection here.</p>
     '''
     return page('Profile', body)
 
 
+@app.route('/strava/connect')
+def strava_connect():
+    if not is_strava_configured():
+        flash('Strava integration is not configured yet. Add STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET.', 'warning')
+        return redirect(url_for('profile'))
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    return redirect(build_strava_auth_url())
+
+
+@app.route('/strava/callback')
+def strava_callback():
+    error = request.args.get('error')
+    if error:
+        flash(f'Strava authorization failed: {error}', 'danger')
+        return redirect(url_for('profile'))
+
+    code = request.args.get('code')
+    state = request.args.get('state')
+    if not code or not state or session.get('strava_oauth_state') != state:
+        flash('Invalid Strava callback.', 'danger')
+        return redirect(url_for('profile'))
+
+    response = requests.post(STRAVA_TOKEN_URL, data={
+        'client_id': STRAVA_CLIENT_ID,
+        'client_secret': STRAVA_CLIENT_SECRET,
+        'code': code,
+        'grant_type': 'authorization_code',
+    }, timeout=30)
+
+    if not response.ok:
+        flash('Could not exchange the Strava code for an access token.', 'danger')
+        return redirect(url_for('profile'))
+
+    data = response.json()
+    session['strava_access_token'] = data.get('access_token')
+    session['strava_refresh_token'] = data.get('refresh_token')
+    session['strava_athlete_id'] = data.get('athlete', {}).get('id')
+    session.pop('strava_oauth_state', None)
+    flash('Strava connected successfully.', 'success')
+    return redirect(url_for('activities'))
+
+
+@app.route('/strava/disconnect')
+def strava_disconnect():
+    session.pop('strava_access_token', None)
+    session.pop('strava_refresh_token', None)
+    session.pop('strava_athlete_id', None)
+    session.pop('strava_oauth_state', None)
+    flash('Strava disconnected.', 'info')
+    return redirect(url_for('activities'))
+
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
 
