@@ -10,6 +10,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
 
 # In-memory placeholder data. Replace this with a database later.
+# Each activity is stored as a dict, so we can show richer detail.
 activity_items = []
 goal_items = []
 
@@ -119,7 +120,14 @@ def activities():
         name = request.form.get('name', '').strip() or 'Workout'
         upload_requested = request.form.get('upload_to_strava') == '1'
 
-        activity_items.append(name)
+        activity_items.append({
+            'name': name,
+            'type': 'Run',
+            'start_date': datetime.utcnow().strftime('%Y-%m-%d %H:%M'),
+            'distance': 5.0,
+            'source': 'local',
+            'strava_id': None,
+        })
 
         if upload_requested and 'strava_access_token' in session:
             response = upload_activity_to_strava(session['strava_access_token'], name)
@@ -135,11 +143,29 @@ def activities():
 
         return redirect(url_for('activities'))
 
+    strava_connected = 'strava_access_token' in session
+    if strava_connected:
+        for item in fetch_strava_activities(session['strava_access_token']):
+            strava_id = item.get('id')
+            if any(act.get('strava_id') == strava_id for act in activity_items if act.get('strava_id') is not None):
+                continue
+            activity_items.append({
+                'name': item.get('name') or 'Strava activity',
+                'type': item.get('type', 'Run'),
+                'start_date': item.get('start_date_local', '').replace('T', ' '),
+                'distance': round(item.get('distance', 0) / 1609.34, 2),
+                'source': 'strava',
+                'strava_id': strava_id,
+            })
+
+    def format_activity(a):
+        distance = f"{a.get('distance', 0)} mi" if a.get('distance') is not None else 'unknown'
+        return f"{a.get('name')} — {a.get('type')} — {a.get('start_date')} — {distance}"
+
     rows = ''.join(
-        f'<li>{item}</li>' for item in activity_items
+        f'<li>{format_activity(item)}</li>' for item in activity_items
     ) or '<li>No activities yet.</li>'
 
-    strava_connected = 'strava_access_token' in session
     connect_link = '<a href="/strava/connect">Connect Strava</a>' if not strava_connected else '<a href="/strava/disconnect">Disconnect Strava</a>'
     sync_link = '<a href="/strava/sync">Sync from Strava</a>' if strava_connected else ''
 
@@ -231,10 +257,19 @@ def strava_sync():
     fetched = fetch_strava_activities(session['strava_access_token'])
     count = 0
     for item in fetched:
-        title = item.get('name') or 'Strava activity'
-        if title not in activity_items:
-            activity_items.append(title)
-            count += 1
+        strava_id = item.get('id')
+        if any(act.get('strava_id') == strava_id for act in activity_items if act.get('strava_id') is not None):
+            continue
+
+        activity_items.append({
+            'name': item.get('name') or 'Strava activity',
+            'type': item.get('type', 'Run'),
+            'start_date': item.get('start_date_local', '').replace('T', ' '),
+            'distance': round(item.get('distance', 0) / 1609.34, 2),
+            'source': 'strava',
+            'strava_id': strava_id,
+        })
+        count += 1
 
     flash(f'Synced {count} activities from Strava.', 'success' if count else 'info')
     return redirect(url_for('activities'))
