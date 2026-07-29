@@ -1,0 +1,5 @@
+Flask>=2.4
+Werkzeug>=3.0
+requests>=2.31
+python-dotenv>=1.0
+gunicorn>=20.1
