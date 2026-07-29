@@ -32,7 +32,7 @@ def build_strava_auth_url():
         'client_id': STRAVA_CLIENT_ID,
         'redirect_uri': STRAVA_REDIRECT_URI,
         'response_type': 'code',
-        'scope': 'activity:write',
+        'scope': 'activity:read_all,activity:write',
         'state': state,
     }
     return f"{STRAVA_AUTH_URL}?{urlencode(params)}"
@@ -63,7 +63,9 @@ def fetch_strava_activities(access_token):
         timeout=30,
     )
     if not response.ok:
+        flash(f'Unable to fetch Strava activities: {response.status_code} {response.text[:120]}', 'danger')
         return []
+
     return response.json()
 
 
@@ -133,18 +135,13 @@ def activities():
 
         return redirect(url_for('activities'))
 
-    if 'strava_access_token' in session:
-        for item in fetch_strava_activities(session['strava_access_token']):
-            title = item.get('name') or 'Strava activity'
-            if title not in activity_items:
-                activity_items.append(title)
-
     rows = ''.join(
         f'<li>{item}</li>' for item in activity_items
     ) or '<li>No activities yet.</li>'
 
     strava_connected = 'strava_access_token' in session
     connect_link = '<a href="/strava/connect">Connect Strava</a>' if not strava_connected else '<a href="/strava/disconnect">Disconnect Strava</a>'
+    sync_link = '<a href="/strava/sync">Sync from Strava</a>' if strava_connected else ''
 
     body = f'''
         <form method="post">
@@ -152,7 +149,7 @@ def activities():
           <label><input type="checkbox" name="upload_to_strava" value="1" /> Upload to Strava</label>
           <button type="submit">Save activity</button>
         </form>
-        <p>{connect_link}</p>
+        <p>{connect_link} {sync_link}</p>
         <ul>{rows}</ul>
         <p>TODO: wire this up to activity creation, editing, and deletion.</p>
     '''
@@ -222,6 +219,24 @@ def strava_callback():
     session['strava_athlete_id'] = data.get('athlete', {}).get('id')
     session.pop('strava_oauth_state', None)
     flash('Strava connected successfully.', 'success')
+    return redirect(url_for('activities'))
+
+
+@app.route('/strava/sync')
+def strava_sync():
+    if 'strava_access_token' not in session:
+        flash('Connect Strava first before syncing activities.', 'warning')
+        return redirect(url_for('activities'))
+
+    fetched = fetch_strava_activities(session['strava_access_token'])
+    count = 0
+    for item in fetched:
+        title = item.get('name') or 'Strava activity'
+        if title not in activity_items:
+            activity_items.append(title)
+            count += 1
+
+    flash(f'Synced {count} activities from Strava.', 'success' if count else 'info')
     return redirect(url_for('activities'))
 
 
