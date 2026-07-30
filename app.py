@@ -75,6 +75,7 @@ def page(title, body):
         f'<p class="{category}">{message}</p>'
         for category, message in get_flashed_messages(with_categories=True)
     )
+    dark_mode = 'dark' if session.get('dark_mode') else 'light'
     return render_template_string('''
         <!doctype html>
         <html>
@@ -84,21 +85,30 @@ def page(title, body):
             <title>{{ title }}</title>
             <link rel="stylesheet" href="/static/css/styles.css">
           </head>
-          <body>
-            <h1>Endurance Tracker</h1>
-            <nav>
-              <a href="/">Home</a> |
-              <a href="/dashboard">Dashboard</a> |
-              <a href="/activities">Activities</a> |
-              <a href="/goals">Goals</a> |
-              <a href="/profile">Profile</a>
-            </nav>
-            <hr>
-            {{ messages | safe }}
-            {{ body | safe }}
+          <body class="theme-{{ dark_mode }}">
+            <div class="page-shell">
+              <div class="topbar">
+                <h1>Endurance Tracker</h1>
+                <form method="post" action="/theme/toggle" class="theme-toggle-form">
+                  <button type="submit" class="theme-toggle-btn">
+                    {{ 'Light mode' if dark_mode == 'dark' else 'Dark mode' }}
+                  </button>
+                </form>
+              </div>
+              <nav>
+                <a href="/">Home</a> |
+                <a href="/dashboard">Dashboard</a> |
+                <a href="/activities">Activities</a> |
+                <a href="/goals">Goals</a> |
+                <a href="/profile">Profile</a>
+              </nav>
+              <hr>
+              {{ messages | safe }}
+              {{ body | safe }}
+            </div>
           </body>
         </html>
-    ''', title=title, body=body, messages=messages)
+    ''', title=title, body=body, messages=messages, dark_mode=dark_mode)
 
 
 @app.route('/')
@@ -359,6 +369,12 @@ def strava_disconnect():
     session.pop('strava_oauth_state', None)
     flash('Strava disconnected.', 'info')
     return redirect(url_for('activities'))
+
+
+@app.route('/theme/toggle', methods=['POST'])
+def toggle_theme():
+    session['dark_mode'] = not session.get('dark_mode', False)
+    return redirect(request.referrer or url_for('home'))
 
 
 if __name__ == '__main__':
