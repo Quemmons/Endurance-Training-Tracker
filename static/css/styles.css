@@ -45,7 +45,12 @@ body.theme-dark .activity-card {
   color: #f5f5f5;
 }
 
-body.theme-dark .activity-form input,
+body.theme-dark .activity-form input {
+  background: #2a2d35;
+  color: #f5f5f5;
+  border-color: #67A686;
+}
+
 body.theme-dark .activity-form label {
   color: #f5f5f5;
 }
