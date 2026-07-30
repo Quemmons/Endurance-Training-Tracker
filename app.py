@@ -100,6 +100,7 @@ def page(title, body):
                 <a href="/dashboard">Dashboard</a> |
                 <a href="/activities">Activities</a> |
                 <a href="/goals">Goals</a> |
+                <a href="/milestones">Milestones</a> |
                 <a href="/profile">Profile</a>
               </nav>
               <hr>
@@ -127,6 +128,17 @@ def dashboard():
         <p>TODO: calculate totals, weekly trends, and recent activity summaries here.</p>
     '''
     return page('Dashboard', body)
+
+
+@app.route('/milestones')
+def milestones():
+    body = '''
+        <section class="panel">
+          <div class="section-title">Milestones</div>
+          <p>Track your progress milestones here.</p>
+        </section>
+    '''
+    return page('Milestones', body)
 
 
 @app.route('/activities', methods=['GET', 'POST'])
