@@ -22,6 +22,7 @@ body.theme-dark {
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
+  margin-bottom: 0.75rem;
 }
 
 .theme-toggle-form {
@@ -88,7 +89,7 @@ h1 {
   display: inline-block;
   background: #67A686;
   color: #000000;
-  padding: 0.55rem 1rem;
+  padding: 1rem 2rem;
   border-radius: 999px;
   font-size: 1.35rem;
   font-weight: 700;
