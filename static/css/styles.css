@@ -88,8 +88,10 @@ h1 {
   display: inline-block;
   background: #67A686;
   color: #000000;
-  padding: 0.4rem 0.8rem;
+  padding: 0.5rem 0.95rem;
   border-radius: 999px;
+  font-size: 1.35rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
 nav {
