@@ -84,6 +84,14 @@ h1 {
   color: #67A686;
 }
 
+.page-title {
+  display: inline-block;
+  background: #67A686;
+  color: #000000;
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+}
+
 nav {
   padding: 0 2rem 1.2rem;
 }

@@ -88,7 +88,7 @@ def page(title, body):
           <body class="theme-{{ dark_mode }}">
             <div class="page-shell">
               <div class="topbar">
-                <h1>Endurance Tracker</h1>
+                <h1 class="page-title">Endurance Tracker</h1>
                 <form method="post" action="/theme/toggle" class="theme-toggle-form">
                   <button type="submit" class="theme-toggle-btn">
                     {{ 'Light mode' if dark_mode == 'dark' else 'Dark mode' }}
