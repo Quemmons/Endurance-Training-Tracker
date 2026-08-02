@@ -238,11 +238,15 @@ def activities():
             strava_id = item.get('id')
             if any(act.get('strava_id') == strava_id for act in activity_items if act.get('strava_id') is not None):
                 continue
+            start_date = item.get('start_date_local', '')
+            if start_date.endswith('Z'):
+                start_date = start_date[:-1]
             activity_items.append({
                 'name': item.get('name') or 'Strava activity',
                 'type': item.get('type', 'Run'),
-                'start_date': item.get('start_date_local', '').replace('T', ' '),
+                'start_date': start_date.replace('T', ' '),
                 'distance': round(item.get('distance', 0) / 1609.34, 2),
+                'duration': str(round(item.get('moving_time', item.get('elapsed_time', 0)) / 60, 2)),
                 'source': 'strava',
                 'strava_id': strava_id,
                 'pace_text': format_pace_minutes_per_mile(item.get('average_speed')),
