@@ -76,6 +76,35 @@ def fetch_strava_activities(access_token):
     return response.json()
 
 
+def calculate_pace_minutes_per_mile(average_speed_mps):
+    """Convert Strava's average speed in meters/second to a pace in minutes per mile."""
+    try:
+        average_speed_mps = float(average_speed_mps)
+    except (TypeError, ValueError):
+        return None
+
+    if average_speed_mps <= 0:
+        return None
+
+    miles_per_hour = average_speed_mps * 2.2369362920544
+    return round(60 / miles_per_hour, 2)
+
+
+def format_pace_minutes_per_mile(average_speed_mps):
+    """Format pace as mm:ss/mi for display in the UI."""
+    pace_value = calculate_pace_minutes_per_mile(average_speed_mps)
+    if pace_value is None:
+        return None
+
+    whole_minutes = int(pace_value)
+    seconds = int(round((pace_value - whole_minutes) * 60))
+    if seconds == 60:
+        whole_minutes += 1
+        seconds = 0
+
+    return f'{whole_minutes}:{seconds:02d}/mi'
+
+
 def page(title, body):
     """Render the shared page shell with navigation, flash messages, and theme support."""
     messages = ''.join(
@@ -216,6 +245,7 @@ def activities():
                 'distance': round(item.get('distance', 0) / 1609.34, 2),
                 'source': 'strava',
                 'strava_id': strava_id,
+                'pace_text': format_pace_minutes_per_mile(item.get('average_speed')),
             })
 
     rows = []
@@ -226,6 +256,17 @@ def activities():
         distance = item.get('distance', 0)
         duration = item.get('duration', 'n/a')
         source = item.get('source', 'local')
+        pace_text = item.get('pace_text')
+
+        meta_items = [
+            f'<span>Date: {activity_date}</span>',
+            f'<span>Distance: {distance} mi</span>',
+            f'<span>Duration: {duration} min</span>',
+            f'<span>Source: {source}</span>',
+        ]
+        if pace_text:
+            meta_items.append(f'<span>Pace: {pace_text}</span>')
+
         rows.append(f"""
             <div class="activity-card">
               <div class="activity-card__top">
@@ -233,10 +274,7 @@ def activities():
                 <span class="activity-tag">{activity_type}</span>
               </div>
               <div class="activity-card__meta">
-                <span>Date: {activity_date}</span>
-                <span>Distance: {distance} mi</span>
-                <span>Duration: {duration} min</span>
-                <span>Source: {source}</span>
+                {''.join(meta_items)}
               </div>
               <form method="post" class="activity-card__actions">
                 <input type="hidden" name="activity_index" value="{index}">
@@ -384,6 +422,7 @@ def strava_sync():
             'distance': round(item.get('distance', 0) / 1609.34, 2),
             'source': 'strava',
             'strava_id': strava_id,
+            'pace_text': format_pace_minutes_per_mile(item.get('average_speed')),
         })
         count += 1
 

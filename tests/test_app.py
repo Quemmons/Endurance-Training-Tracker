@@ -1,5 +1,12 @@
 import importlib
 
+from app import calculate_pace_minutes_per_mile, format_pace_minutes_per_mile
+
+
+def test_calculate_pace_from_strava_speed():
+    assert calculate_pace_minutes_per_mile(2.2352) == 12.0
+    assert format_pace_minutes_per_mile(2.2352) == '12:00/mi'
+
 
 def test_activities_page_renders_and_accepts_post():
     app_module = importlib.import_module('app')
