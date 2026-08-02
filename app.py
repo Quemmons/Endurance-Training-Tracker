@@ -223,8 +223,7 @@ def milestones():
 
 @app.route('/activities', methods=['GET', 'POST'])
 def activities():
-    """Handle activity creation, deletion, and optional Strava syncing."""
-    # When the form is submitted, save the new activity and optionally upload it to Strava.
+    """Handle activity deletion and Strava syncing."""
     if request.method == 'POST':
         action = request.form.get('action')
         if action == 'delete' and request.form.get('activity_index') is not None:
@@ -237,47 +236,7 @@ def activities():
                 flash('Activity removed.', 'info')
             return redirect(url_for('activities'))
 
-        name = request.form.get('name', '').strip() or 'Workout'
-        activity_type = request.form.get('type', 'Run').strip() or 'Run'
-        distance = request.form.get('distance', '0').strip() or '0'
-        duration = request.form.get('duration', '').strip() or '0'
-        upload_requested = request.form.get('upload_to_strava') == '1'
-
-        try:
-            distance_value = float(distance)
-        except ValueError:
-            distance_value = 0.0
-
-        try:
-            duration_seconds = int(round(float(duration)))
-        except ValueError:
-            duration_seconds = 0
-
-        activity_items.append({
-            'name': name,
-            'type': activity_type,
-            'start_date': datetime.utcnow().strftime('%Y-%m-%d %H:%M'),
-            'distance': round(distance_value, 2),
-            'duration_seconds': duration_seconds,
-            'source': 'local',
-            'strava_id': None,
-        })
-
-        if upload_requested and 'strava_access_token' in session:
-            response = upload_activity_to_strava(session['strava_access_token'], name)
-            if response.ok:
-                flash('Saved locally and uploaded to Strava.', 'success')
-            else:
-                flash(f'Saved locally, but Strava upload failed: {response.text[:120]}', 'warning')
-        else:
-            if upload_requested:
-                flash('Saved locally. Connect Strava first to upload.', 'info')
-            else:
-                flash('Saved locally.', 'info')
-
-        return redirect(url_for('activities'))
-
-    # When the page loads, show the activity form and any Strava-connected activities.
+    # When the page loads, show Strava-connected activities and the recent activity list.
     strava_connected = 'strava_access_token' in session
     if strava_connected:
         for item in fetch_strava_activities(session['strava_access_token']):
@@ -337,33 +296,6 @@ def activities():
     sync_link = '<a href="/strava/sync">Sync from Strava</a>' if strava_connected else ''
 
     body = f'''
-        <section class="panel">
-          <h2>Add an activity</h2>
-          <form method="post" class="activity-form">
-            <label>
-              Name
-              <input type="text" name="name" placeholder="Morning run" required>
-            </label>
-            <label>
-              Type
-              <input type="text" name="type" value="Run">
-            </label>
-            <label>
-              Distance (mi)
-              <input type="number" name="distance" step="0.1" value="5">
-            </label>
-            <label>
-              Duration (seconds)
-              <input type="number" name="duration" step="1" value="1800">
-            </label>
-            <label class="checkbox-row">
-              <input type="checkbox" name="upload_to_strava" value="1">
-              Upload to Strava
-            </label>
-            <button type="submit">Save activity</button>
-          </form>
-        </section>
-
         <section class="panel panel--tight">
           <div class="activity-toolbar">
             <h2>Recent activities</h2>
