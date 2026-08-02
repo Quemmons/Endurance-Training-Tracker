@@ -100,6 +100,23 @@ def format_activity_start_date(timestamp):
     return f'{date_part} {hour}:{minute} {ampm}'
 
 
+def format_duration_seconds(seconds):
+    """Render a duration as H:MM:SS."""
+    try:
+        total_seconds = int(float(seconds))
+    except (TypeError, ValueError):
+        return None
+
+    if total_seconds < 0:
+        total_seconds = 0
+
+    hours = total_seconds // 3600
+    remainder = total_seconds % 3600
+    minutes = remainder // 60
+    secs = remainder % 60
+    return f'{hours}:{minutes:02d}:{secs:02d}'
+
+
 def calculate_pace_minutes_per_mile(average_speed_mps):
     """Convert Strava's average speed in meters/second to a pace in minutes per mile."""
     try:
@@ -231,12 +248,17 @@ def activities():
         except ValueError:
             distance_value = 0.0
 
+        try:
+            duration_seconds = int(round(float(duration)))
+        except ValueError:
+            duration_seconds = 0
+
         activity_items.append({
             'name': name,
             'type': activity_type,
             'start_date': datetime.utcnow().strftime('%Y-%m-%d %H:%M'),
             'distance': round(distance_value, 2),
-            'duration': duration,
+            'duration_seconds': duration_seconds,
             'source': 'local',
             'strava_id': None,
         })
@@ -263,12 +285,13 @@ def activities():
             if any(act.get('strava_id') == strava_id for act in activity_items if act.get('strava_id') is not None):
                 continue
             raw_start = item.get('start_date_local', '')
+            duration_seconds = item.get('moving_time', item.get('elapsed_time', 0)) or 0
             activity_items.append({
                 'name': item.get('name') or 'Strava activity',
                 'type': item.get('type', 'Run'),
                 'start_date': format_activity_start_date(raw_start),
                 'distance': round(item.get('distance', 0) / 1609.34, 2),
-                'duration': str(round(item.get('moving_time', item.get('elapsed_time', 0)) / 60, 2)),
+                'duration_seconds': duration_seconds,
                 'source': 'strava',
                 'strava_id': strava_id,
                 'pace_text': format_pace_minutes_per_mile(item.get('average_speed')),
@@ -280,14 +303,14 @@ def activities():
         activity_type = item.get('type', 'Run')
         activity_date = item.get('start_date', 'Unknown date')
         distance = item.get('distance', 0)
-        duration = item.get('duration', 'n/a')
+        duration_text = format_duration_seconds(item.get('duration_seconds')) or 'n/a'
         source = item.get('source', 'local')
         pace_text = item.get('pace_text')
 
         meta_items = [
             f'<span>Date: {activity_date}</span>',
             f'<span>Distance: {distance} mi</span>',
-            f'<span>Duration: {duration} min</span>',
+            f'<span>Duration: {duration_text}</span>',
             f'<span>Source: {source}</span>',
         ]
         if pace_text:
@@ -330,8 +353,8 @@ def activities():
               <input type="number" name="distance" step="0.1" value="5">
             </label>
             <label>
-              Duration (min)
-              <input type="number" name="duration" step="1" value="30">
+              Duration (seconds)
+              <input type="number" name="duration" step="1" value="1800">
             </label>
             <label class="checkbox-row">
               <input type="checkbox" name="upload_to_strava" value="1">
