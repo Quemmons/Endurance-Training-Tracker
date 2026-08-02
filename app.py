@@ -51,7 +51,7 @@ def upload_activity_to_strava(access_token, name):
         'start_date_local': datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
         'elapsed_time': 1800,
         'distance': 5000,
-        'description': 'Uploaded from the endurance tracker shell',
+        'description': 'Uploaded from the Milestones shell',
     }
     return requests.post(
         f'{STRAVA_API_URL}/activities',
@@ -95,7 +95,7 @@ def page(title, body):
           <body class="theme-{{ dark_mode }}">
             <div class="page-shell">
               <div class="topbar">
-                <h1 class="page-title">Endurance Tracker</h1>
+                <h1 class="page-title">Milestones</h1>
                 <form method="post" action="/theme/toggle" class="theme-toggle-form">
                   <button type="submit" class="theme-toggle-btn">
                     {{ 'Light mode' if dark_mode == 'dark' else 'Dark mode' }}
@@ -121,9 +121,9 @@ def page(title, body):
 
 @app.route('/')
 def home():
-    """Show the landing page for the endurance tracker."""
+    """Show the landing page for the Milestones app."""
     body = '''
-        <p>This is a stripped-down shell for your endurance tracker.</p>
+        <p>This is a stripped-down shell for your Milestones app.</p>
         <p>Use this file to add the real pieces one by one.</p>
     '''
     return page('Home', body)
