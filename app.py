@@ -76,6 +76,30 @@ def fetch_strava_activities(access_token):
     return response.json()
 
 
+def format_activity_start_date(timestamp):
+    """Format a Strava or local timestamp as YYYY-MM-DD h:mm AM/PM."""
+    if not timestamp:
+        return ''
+
+    iso_text = timestamp
+    if iso_text.endswith('Z'):
+        iso_text = iso_text[:-1] + '+00:00'
+
+    try:
+        dt = datetime.fromisoformat(iso_text)
+    except ValueError:
+        dt = None
+
+    if dt is None:
+        return timestamp.replace('T', ' ').rstrip('Z')
+
+    date_part = dt.strftime('%Y-%m-%d')
+    hour = dt.strftime('%I').lstrip('0') or '0'
+    minute = dt.strftime('%M')
+    ampm = dt.strftime('%p')
+    return f'{date_part} {hour}:{minute} {ampm}'
+
+
 def calculate_pace_minutes_per_mile(average_speed_mps):
     """Convert Strava's average speed in meters/second to a pace in minutes per mile."""
     try:
@@ -238,13 +262,11 @@ def activities():
             strava_id = item.get('id')
             if any(act.get('strava_id') == strava_id for act in activity_items if act.get('strava_id') is not None):
                 continue
-            start_date = item.get('start_date_local', '')
-            if start_date.endswith('Z'):
-                start_date = start_date[:-1]
+            raw_start = item.get('start_date_local', '')
             activity_items.append({
                 'name': item.get('name') or 'Strava activity',
                 'type': item.get('type', 'Run'),
-                'start_date': start_date.replace('T', ' '),
+                'start_date': format_activity_start_date(raw_start),
                 'distance': round(item.get('distance', 0) / 1609.34, 2),
                 'duration': str(round(item.get('moving_time', item.get('elapsed_time', 0)) / 60, 2)),
                 'source': 'strava',
