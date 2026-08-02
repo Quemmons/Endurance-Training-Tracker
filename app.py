@@ -6,14 +6,16 @@ from urllib.parse import urlencode
 import requests
 from flask import Flask, flash, get_flashed_messages, redirect, render_template_string, request, session, url_for
 
+# Create the Flask web app. This is the main entry point for the tracker.
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
 
-# In-memory placeholder data. Replace this with a database later.
-# Each activity is stored as a dict, so we can show richer detail.
+# In-memory placeholder storage. Replace this with a real database later.
+# Each activity is stored as a dictionary so the UI can show details like name, date, distance, and source.
 activity_items = []
 goal_items = []
 
+# Strava integration settings. These are used for OAuth login and uploading activities.
 STRAVA_CLIENT_ID = os.environ.get('STRAVA_CLIENT_ID', '260628')
 STRAVA_CLIENT_SECRET = os.environ.get('STRAVA_CLIENT_SECRET', '87e49e77589f4ff35de2472bd4820b1af8fe347b')
 STRAVA_REDIRECT_URI = os.environ.get('STRAVA_REDIRECT_URI', 'https://milestones-ktz9.onrender.com/strava/callback')
@@ -23,10 +25,12 @@ STRAVA_API_URL = 'https://www.strava.com/api/v3'
 
 
 def is_strava_configured():
+    """Return True when the Strava app credentials are available."""
     return bool(STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET)
 
 
 def build_strava_auth_url():
+    """Build the Strava OAuth URL and save a security token in the session."""
     state = secrets.token_hex(16)
     session['strava_oauth_state'] = state
     params = {
@@ -40,6 +44,7 @@ def build_strava_auth_url():
 
 
 def upload_activity_to_strava(access_token, name):
+    """Send a new workout to Strava using the user's access token."""
     payload = {
         'name': name,
         'type': 'Run',
@@ -57,6 +62,7 @@ def upload_activity_to_strava(access_token, name):
 
 
 def fetch_strava_activities(access_token):
+    """Fetch the latest Strava activities for the signed-in athlete."""
     response = requests.get(
         f'{STRAVA_API_URL}/athlete/activities',
         headers={'Authorization': f'Bearer {access_token}'},
@@ -71,6 +77,7 @@ def fetch_strava_activities(access_token):
 
 
 def page(title, body):
+    """Render the shared page shell with navigation, flash messages, and theme support."""
     messages = ''.join(
         f'<p class="{category}">{message}</p>'
         for category, message in get_flashed_messages(with_categories=True)
@@ -114,6 +121,7 @@ def page(title, body):
 
 @app.route('/')
 def home():
+    """Show the landing page for the endurance tracker."""
     body = '''
         <p>This is a stripped-down shell for your endurance tracker.</p>
         <p>Use this file to add the real pieces one by one.</p>
@@ -123,6 +131,7 @@ def home():
 
 @app.route('/dashboard')
 def dashboard():
+    """Show the dashboard placeholder for future stats and summaries."""
     body = '''
         <p>Dashboard placeholder.</p>
         <p>TODO: calculate totals, weekly trends, and recent activity summaries here.</p>
@@ -132,6 +141,7 @@ def dashboard():
 
 @app.route('/milestones')
 def milestones():
+    """Show the milestones section for progress tracking."""
     body = '''
         <section class="panel">
           <div class="section-title">Milestones</div>
@@ -143,6 +153,8 @@ def milestones():
 
 @app.route('/activities', methods=['GET', 'POST'])
 def activities():
+    """Handle activity creation, deletion, and optional Strava syncing."""
+    # When the form is submitted, save the new activity and optionally upload it to Strava.
     if request.method == 'POST':
         action = request.form.get('action')
         if action == 'delete' and request.form.get('activity_index') is not None:
@@ -190,6 +202,7 @@ def activities():
 
         return redirect(url_for('activities'))
 
+    # When the page loads, show the activity form and any Strava-connected activities.
     strava_connected = 'strava_access_token' in session
     if strava_connected:
         for item in fetch_strava_activities(session['strava_access_token']):
@@ -282,6 +295,7 @@ def activities():
 
 @app.route('/goals')
 def goals():
+    """Show the current goals list. This is still a simple placeholder."""
     rows = ''.join(
         f'<li>{item}</li>' for item in goal_items
     ) or '<li>No goals yet.</li>'
@@ -295,6 +309,7 @@ def goals():
 
 @app.route('/profile')
 def profile():
+    """Show the user profile page and Strava connection status."""
     strava_status = 'Connected' if 'strava_access_token' in session else 'Not connected'
     body = f'''
         <p>Profile placeholder.</p>
@@ -306,6 +321,7 @@ def profile():
 
 @app.route('/strava/connect')
 def strava_connect():
+    """Start the Strava authorization flow for the current user."""
     if not is_strava_configured():
         flash('Strava integration is not configured yet. Add STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET.', 'warning')
         return redirect(url_for('profile'))
@@ -315,6 +331,7 @@ def strava_connect():
 
 @app.route('/strava/callback')
 def strava_callback():
+    """Handle the OAuth callback returned by Strava after login."""
     error = request.args.get('error')
     if error:
         flash(f'Strava authorization failed: {error}', 'danger')
@@ -348,6 +365,7 @@ def strava_callback():
 
 @app.route('/strava/sync')
 def strava_sync():
+    """Pull new activities from Strava into the local tracker list."""
     if 'strava_access_token' not in session:
         flash('Connect Strava first before syncing activities.', 'warning')
         return redirect(url_for('activities'))
@@ -375,6 +393,7 @@ def strava_sync():
 
 @app.route('/strava/disconnect')
 def strava_disconnect():
+    """Remove the Strava connection details from the current session."""
     session.pop('strava_access_token', None)
     session.pop('strava_refresh_token', None)
     session.pop('strava_athlete_id', None)
@@ -385,6 +404,7 @@ def strava_disconnect():
 
 @app.route('/theme/toggle', methods=['POST'])
 def toggle_theme():
+    """Switch between light and dark mode for the current session."""
     session['dark_mode'] = not session.get('dark_mode', False)
     return redirect(request.referrer or url_for('home'))
 

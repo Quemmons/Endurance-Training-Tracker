@@ -1,8 +1,11 @@
+// Wait for the page to finish loading before drawing the dashboard charts.
 document.addEventListener('DOMContentLoaded', function () {
+  // The page provides a JSON endpoint for chart data. If it is missing, stop here.
   if (!window.dashboardDataUrl) {
     return;
   }
 
+  // Load the dashboard data and render each chart with the returned values.
   fetch(window.dashboardDataUrl)
     .then(response => response.json())
     .then(data => {

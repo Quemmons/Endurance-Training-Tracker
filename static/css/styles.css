@@ -1,3 +1,4 @@
+/* Base page styling for the whole app */
 body {
   min-height: 100vh;
   font-family: Arial, sans-serif;
@@ -6,11 +7,13 @@ body {
   color: #67A686;
 }
 
+/* Dark mode overrides */
 body.theme-dark {
   background: #0f1115;
   color: #67A686;
 }
 
+/* Main layout and navigation shell */
 .page-shell {
   max-width: 1000px;
   margin: 0 auto;
@@ -83,7 +86,7 @@ h1 {
   margin: 0;
   padding: 1.5rem 2rem 0.5rem;
   color: #67A686;
-}
+}\
 
 .page-title {
   display: inline-block;
@@ -115,6 +118,7 @@ main {
   margin: 0 auto;
 }
 
+/* Content panels and cards */
 .panel {
   background: #f3f3f3;
   border: 1px solid #67A686;
@@ -128,6 +132,7 @@ main {
   padding-top: 1rem;
 }
 
+/* Activity form styling */
 .activity-form {
   display: grid;
   gap: 0.75rem;
@@ -229,8 +234,7 @@ button {
   font-size: 0.85rem;
 }
 
-/* Milestones falling stats */
-/* Milestones flip card */
+/* Milestones flip-card styles */
 .flip-card {
   width: 80%;
   max-width: 680px;
