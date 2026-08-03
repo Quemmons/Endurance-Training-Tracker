@@ -26,7 +26,7 @@ def test_registration_creates_user_and_logs_in():
     response = client.post('/register', data={'username': username, 'password': 'secret123'}, follow_redirects=True)
 
     assert response.status_code == 200
-    assert b'Dashboard placeholder.' in response.data
+    assert b'Hello,' in response.data
 
 
 def test_login_authenticates_registered_user():
@@ -38,7 +38,7 @@ def test_login_authenticates_registered_user():
     response = client.post('/login', data={'username': username, 'password': 'secret123'}, follow_redirects=True)
 
     assert response.status_code == 200
-    assert b'Dashboard placeholder.' in response.data
+    assert b'Hello,' in response.data
 
 
 def test_activities_page_renders_and_accepts_post():
@@ -72,3 +72,34 @@ def test_registered_users_do_not_share_activity_data():
 
     assert b'Private tempo run' in first_response.data
     assert b'Private tempo run' not in second_response.data
+
+
+def test_goal_creation_is_persisted_for_the_logged_in_user():
+    app_module = importlib.import_module('app')
+    client = app_module.app.test_client()
+    username = f'goaluser_{uuid.uuid4().hex[:8]}'
+
+    client.post('/register', data={'username': username, 'password': 'secret123'})
+    response = client.post('/goals', data={
+        'goal_type': 'run',
+        'target_value': '20',
+        'start_date': '2026-01-01',
+        'end_date': '2026-02-01',
+        'description': 'Run 20 miles',
+    }, follow_redirects=True)
+
+    assert response.status_code == 200
+    assert b'Run 20 miles' in response.data
+
+
+def test_profile_shows_account_details():
+    app_module = importlib.import_module('app')
+    client = app_module.app.test_client()
+    username = f'profileuser_{uuid.uuid4().hex[:8]}'
+
+    client.post('/register', data={'username': username, 'password': 'secret123'})
+    response = client.get('/profile')
+
+    assert response.status_code == 200
+    assert b'Username:' in response.data
+    assert b'Member since:' in response.data

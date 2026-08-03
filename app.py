@@ -20,6 +20,7 @@ from flask import (
 # Create the Flask app that serves the Milestones experience.
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
+app.config['JSON_SORT_KEYS'] = False
 
 # App flow overview:
 # - / shows the landing page
@@ -167,6 +168,74 @@ def format_pace_minutes_per_mile(average_speed_mps):
     return f'{whole_minutes}:{seconds:02d}/mi'
 
 
+def build_dashboard_stats(store):
+    """Build a small summary payload for the dashboard view."""
+    activities = store.get('activities', [])
+    total_distance = sum(float(item.get('distance', 0) or 0) for item in activities)
+    total_by_type = {'run': 0.0, 'bike': 0.0, 'swim': 0.0}
+    recent = []
+
+    for item in activities:
+        activity_type = (item.get('type') or 'Run').lower()
+        if activity_type.startswith('bike') or activity_type == 'ride':
+            activity_type = 'bike'
+        elif activity_type.startswith('swim'):
+            activity_type = 'swim'
+        else:
+            activity_type = 'run'
+
+        total_by_type[activity_type] += float(item.get('distance', 0) or 0)
+        recent.append({
+            'name': item.get('name', 'Workout'),
+            'type': activity_type,
+            'distance': item.get('distance', 0),
+            'date': item.get('start_date', ''),
+            'source': item.get('source', 'local'),
+        })
+
+    recent = recent[-5:][::-1]
+    workout_count = len(activities)
+    average_pace = None
+    pace_values = [item.get('pace_text') for item in activities if item.get('pace_text')]
+    if pace_values:
+        try:
+            pace_numbers = [float(value.split('/')[0].split(':')[0]) + float(value.split('/')[0].split(':')[1]) / 60 for value in pace_values if ':' in value]
+            average_pace = round(sum(pace_numbers) / len(pace_numbers), 2)
+        except (ValueError, IndexError):
+            average_pace = None
+
+    return {
+        'total_distance': round(total_distance, 2),
+        'total_by_type': {key: round(value, 2) for key, value in total_by_type.items()},
+        'workout_count': workout_count,
+        'average_pace': average_pace,
+        'recent': recent,
+    }
+
+
+def build_funny_stats(store):
+    """Create placeholder funny stats for the dashboard."""
+    activities = store.get('activities', [])
+    total_distance = sum(float(item.get('distance', 0) or 0) for item in activities)
+    return [
+        {
+            'title': 'School bus lengths run',
+            'value': round(total_distance / 45, 1),
+            'detail': 'A school bus is about 45 feet long.',
+        },
+        {
+            'title': 'Marathons completed',
+            'value': round(total_distance / 26.2, 1),
+            'detail': 'Because every training log deserves a dramatic comparison.',
+        },
+        {
+            'title': 'Coffee-fueled miles',
+            'value': round(total_distance / 10, 1),
+            'detail': 'A very optimistic estimate for your pace.',
+        },
+    ]
+
+
 def page(title, body):
     """Render the shared page shell with navigation, flash messages, and theme support."""
     messages = ''.join(
@@ -198,7 +267,6 @@ def page(title, body):
                 <a href="/dashboard">Dashboard</a> |
                 <a href="/activities">Activities</a> |
                 <a href="/goals">Goals</a> |
-                <a href="/milestones">Milestones</a> |
                 <a href="/profile">Profile</a>
               </nav>
               <hr>
@@ -279,24 +347,17 @@ def logout():
 
 @app.route('/dashboard')
 def dashboard():
-    """Show a simple dashboard placeholder for the app."""
-    body = '''
-        <p>Dashboard placeholder.</p>
-        <p>TODO: calculate totals, weekly trends, and recent activity summaries here.</p>
-    '''
-    return page('Dashboard', body)
+    """Show a dashboard with summaries, funny stats, and recent activity history."""
+    store = get_user_store()
+    stats = build_dashboard_stats(store)
+    funny_stats = build_funny_stats(store)
+    return render_template('dashboard.html', stats=stats, funny_stats=funny_stats, goals=store.get('goals', []))
 
 
 @app.route('/milestones')
 def milestones():
-    """Show the milestones section for progress tracking."""
-    body = '''
-        <section class="panel">
-          <div class="section-title">Milestones</div>
-          <p>Track your progress milestones here.</p>
-        </section>
-    '''
-    return page('Milestones', body)
+    """Redirect the old milestones route to the dashboard so the app has one home for stats."""
+    return redirect(url_for('dashboard'))
 
 
 @app.route('/activities', methods=['GET', 'POST'])
@@ -331,6 +392,8 @@ def activities():
 
     # When the page loads, show Strava-connected activities and the recent activity list.
     strava_connected = 'strava_access_token' in session
+    if not strava_connected and not user_activities:
+        flash('Tip: connect Strava on the activities page to sync your training history.', 'info')
     if strava_connected:
         for item in fetch_strava_activities(session['strava_access_token']):
             strava_id = item.get('id')
@@ -405,32 +468,52 @@ def activities():
     return page('Activities', body)
 
 
-@app.route('/goals', endpoint='view_goals')
+@app.route('/goals', methods=['GET', 'POST'], endpoint='view_goals')
 def goals():
-    """Show the current goals list as a simple placeholder."""
+    """Show the current goals list and allow creating new goals."""
     store = get_user_store()
     user_goals = store['goals']
-    rows = ''.join(
-        f'<li>{item}</li>' for item in user_goals
-    ) or '<li>No goals yet.</li>'
 
-    body = f'''
-        <ul>{rows}</ul>
-        <p>TODO: add goal creation, progress tracking, and completion logic here.</p>
-    '''
-    return page('Goals', body)
+    if request.method == 'POST':
+        goal_type = (request.form.get('goal_type') or '').strip().lower()
+        target_value = request.form.get('target_value', '').strip()
+        start_date = request.form.get('start_date', '').strip()
+        end_date = request.form.get('end_date', '').strip()
+        description = (request.form.get('description') or '').strip()
+
+        if not goal_type or not target_value or not start_date or not end_date:
+            flash('Please fill in all goal fields.', 'danger')
+            return redirect(url_for('view_goals'))
+
+        try:
+            target_value = float(target_value)
+        except ValueError:
+            flash('Target value must be a number.', 'danger')
+            return redirect(url_for('view_goals'))
+
+        user_goals.append({
+            'id': secrets.token_hex(6),
+            'goal_type': goal_type,
+            'target_value': target_value,
+            'current_progress': 0.0,
+            'start_date': start_date,
+            'end_date': end_date,
+            'description': description or f'{goal_type.capitalize()} goal',
+        })
+        flash('Goal created.', 'success')
+        return redirect(url_for('view_goals'))
+
+    return render_template('goals.html', goals=user_goals)
 
 
 @app.route('/profile')
 def profile():
     """Show the user profile page and current Strava connection status."""
-    strava_status = 'Connected' if 'strava_access_token' in session else 'Not connected'
-    body = f'''
-        <p>Profile placeholder.</p>
-        <p>Strava status: {strava_status}</p>
-        <p>TODO: add account info, authentication, and optional Strava connection here.</p>
-    '''
-    return page('Profile', body)
+    username = session.get('username') or 'Athlete'
+    created_at = datetime.utcnow().strftime('%Y-%m-%d')
+    strava_connected = 'strava_access_token' in session
+    strava_configured = is_strava_configured()
+    return render_template('profile.html', username=username, created_at=created_at, strava_connected=strava_connected, strava_configured=strava_configured)
 
 
 @app.route('/strava/connect')
