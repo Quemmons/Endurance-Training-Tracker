@@ -5,6 +5,7 @@ from urllib.parse import urlencode
 
 import requests
 from flask import Flask, flash, get_flashed_messages, redirect, render_template, render_template_string, request, session, url_for
+from hashlib import sha256
 
 # Create the Flask web app. This is the main entry point for the tracker.
 app = Flask(__name__)
@@ -12,6 +13,7 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
 
 activity_items = []
 goal_items = []
+users = {}
 
 # Strava integration settings. These are used for OAuth login and uploading activities.
 STRAVA_CLIENT_ID = os.environ.get('STRAVA_CLIENT_ID', '260628')
@@ -204,10 +206,28 @@ def login():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    """Render the registration page for the template-based auth flow."""
+    """Render the registration page and create a new user account."""
     if request.method == 'POST':
-        flash('Registration is not implemented yet. Please come back later.', 'info')
-        return redirect(url_for('home'))
+        username = (request.form.get('username') or '').strip()
+        password = request.form.get('password') or ''
+
+        if not username or not password:
+            flash('Please provide both a username and password.', 'danger')
+            return redirect(url_for('register'))
+
+        if username in users:
+            flash('That username is already taken.', 'danger')
+            return redirect(url_for('register'))
+
+        users[username] = {
+            'username': username,
+            'password_hash': sha256(password.encode('utf-8')).hexdigest(),
+        }
+        session['user_id'] = username
+        session['username'] = username
+        flash('Registration successful. You are now signed in.', 'success')
+        return redirect(url_for('dashboard'))
+
     return render_template('register.html')
 
 
@@ -246,6 +266,18 @@ def activities():
             if 0 <= index < len(activity_items):
                 del activity_items[index]
                 flash('Activity removed.', 'info')
+            return redirect(url_for('activities'))
+
+        if request.form.get('name'):
+            activity_items.append({
+                'name': request.form.get('name'),
+                'type': request.form.get('type', 'Run'),
+                'start_date': datetime.utcnow().strftime('%Y-%m-%d %H:%M'),
+                'distance': 0,
+                'duration_seconds': 0,
+                'source': 'local',
+            })
+            flash('Activity added.', 'success')
             return redirect(url_for('activities'))
 
     # When the page loads, show Strava-connected activities and the recent activity list.
