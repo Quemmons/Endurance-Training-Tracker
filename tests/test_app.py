@@ -29,6 +29,18 @@ def test_registration_creates_user_and_logs_in():
     assert b'Dashboard placeholder.' in response.data
 
 
+def test_login_authenticates_registered_user():
+    app_module = importlib.import_module('app')
+    client = app_module.app.test_client()
+    username = f'loginuser_{uuid.uuid4().hex[:8]}'
+
+    client.post('/register', data={'username': username, 'password': 'secret123'})
+    response = client.post('/login', data={'username': username, 'password': 'secret123'}, follow_redirects=True)
+
+    assert response.status_code == 200
+    assert b'Dashboard placeholder.' in response.data
+
+
 def test_activities_page_renders_and_accepts_post():
     app_module = importlib.import_module('app')
     client = app_module.app.test_client()

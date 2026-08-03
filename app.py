@@ -1,21 +1,32 @@
 from datetime import datetime
 import os
 import secrets
+from hashlib import sha256
 from urllib.parse import urlencode
 
 import requests
-from flask import Flask, flash, get_flashed_messages, redirect, render_template, render_template_string, request, session, url_for
-from hashlib import sha256
+from flask import (
+    Flask,
+    flash,
+    get_flashed_messages,
+    redirect,
+    render_template,
+    render_template_string,
+    request,
+    session,
+    url_for,
+)
 
-# Create the Flask web app. This is the main entry point for the tracker.
+# Create the Flask app that serves the Milestones experience.
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
 
+# In-memory data stores used by the demo app.
 activity_items = []
 goal_items = []
 users = {}
 
-# Strava integration settings. These are used for OAuth login and uploading activities.
+# Strava integration settings used for OAuth login and activity syncing.
 STRAVA_CLIENT_ID = os.environ.get('STRAVA_CLIENT_ID', '260628')
 STRAVA_CLIENT_SECRET = os.environ.get('STRAVA_CLIENT_SECRET', '87e49e77589f4ff35de2472bd4820b1af8fe347b')
 STRAVA_REDIRECT_URI = os.environ.get('STRAVA_REDIRECT_URI', 'https://milestones-ktz9.onrender.com/strava/callback')
@@ -30,7 +41,7 @@ def is_strava_configured():
 
 
 def build_strava_auth_url():
-    """Build the Strava OAuth URL and save a security token in the session."""
+    """Build the Strava OAuth URL and store a state token in the session."""
     state = secrets.token_hex(16)
     session['strava_oauth_state'] = state
     params = {
@@ -44,7 +55,7 @@ def build_strava_auth_url():
 
 
 def upload_activity_to_strava(access_token, name):
-    """Send a new workout to Strava using the user's access token."""
+    """Send a demo workout to Strava using the supplied access token."""
     payload = {
         'name': name,
         'type': 'Run',
@@ -69,6 +80,13 @@ def fetch_strava_activities(access_token):
         params={'per_page': 10},
         timeout=30,
     )
+    if response.status_code == 401:
+        session.pop('strava_access_token', None)
+        session.pop('strava_refresh_token', None)
+        session.pop('strava_athlete_id', None)
+        flash('Your Strava connection has expired. Please reconnect Strava to sync activities.', 'warning')
+        return []
+
     if not response.ok:
         flash(f'Unable to fetch Strava activities: {response.status_code} {response.text[:120]}', 'danger')
         return []
@@ -191,16 +209,27 @@ def page(title, body):
 
 @app.route('/')
 def home():
-    """Show the landing page for the Milestones app."""
+    """Render the landing page for the Milestones app."""
     return render_template('home.html')
 
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """Render the login page for the template-based auth flow."""
+    """Render the login page and authenticate a registered user."""
     if request.method == 'POST':
-        flash('Login is not implemented yet. Please register or use the existing demo flow.', 'info')
-        return redirect(url_for('home'))
+        username = (request.form.get('username') or '').strip()
+        password = request.form.get('password') or ''
+        stored_user = users.get(username)
+
+        if stored_user and stored_user['password_hash'] == sha256(password.encode('utf-8')).hexdigest():
+            session['user_id'] = username
+            session['username'] = username
+            flash('Welcome back!', 'success')
+            return redirect(url_for('dashboard'))
+
+        flash('Invalid username or password.', 'danger')
+        return redirect(url_for('login'))
+
     return render_template('login.html')
 
 
@@ -231,9 +260,22 @@ def register():
     return render_template('register.html')
 
 
+@app.route('/logout')
+def logout():
+    """Clear the current session and return the user to the home page."""
+    session.pop('user_id', None)
+    session.pop('username', None)
+    session.pop('strava_access_token', None)
+    session.pop('strava_refresh_token', None)
+    session.pop('strava_athlete_id', None)
+    session.pop('strava_oauth_state', None)
+    flash('You have been logged out.', 'info')
+    return redirect(url_for('home'))
+
+
 @app.route('/dashboard')
 def dashboard():
-    """Show the dashboard placeolder for future stats and summaries."""
+    """Show a simple dashboard placeholder for the app."""
     body = '''
         <p>Dashboard placeholder.</p>
         <p>TODO: calculate totals, weekly trends, and recent activity summaries here.</p>
@@ -255,7 +297,7 @@ def milestones():
 
 @app.route('/activities', methods=['GET', 'POST'])
 def activities():
-    """Handle activity deletion and Strava syncing."""
+    """Handle adding, deleting, and displaying activities."""
     if request.method == 'POST':
         action = request.form.get('action')
         if action == 'delete' and request.form.get('activity_index') is not None:
@@ -356,9 +398,9 @@ def activities():
     return page('Activities', body)
 
 
-@app.route('/goals')
+@app.route('/goals', endpoint='view_goals')
 def goals():
-    """Show the current goals list. This is still a simple placeholder."""
+    """Show the current goals list as a simple placeholder."""
     rows = ''.join(
         f'<li>{item}</li>' for item in goal_items
     ) or '<li>No goals yet.</li>'
@@ -372,7 +414,7 @@ def goals():
 
 @app.route('/profile')
 def profile():
-    """Show the user profile page and Strava connection status."""
+    """Show the user profile page and current Strava connection status."""
     strava_status = 'Connected' if 'strava_access_token' in session else 'Not connected'
     body = f'''
         <p>Profile placeholder.</p>
@@ -394,7 +436,7 @@ def strava_connect():
 
 @app.route('/strava/callback')
 def strava_callback():
-    """Handle the OAuth callback returned by Strava after login."""
+    """Handle the Strava OAuth callback after the user authorizes the app."""
     error = request.args.get('error')
     if error:
         flash(f'Strava authorization failed: {error}', 'danger')
