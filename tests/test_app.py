@@ -103,3 +103,16 @@ def test_profile_shows_account_details():
     assert response.status_code == 200
     assert b'Username:' in response.data
     assert b'Member since:' in response.data
+
+
+def test_dashboard_accepts_manual_year_to_date_miles():
+    app_module = importlib.import_module('app')
+    client = app_module.app.test_client()
+    username = f'yearlyuser_{uuid.uuid4().hex[:8]}'
+
+    client.post('/register', data={'username': username, 'password': 'secret123'})
+    response = client.post('/dashboard', data={'year_to_date_miles': '320.5'}, follow_redirects=True)
+
+    assert response.status_code == 200
+    assert b'320.5' in response.data
+    assert b'Year-to-date miles' in response.data

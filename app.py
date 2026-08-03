@@ -44,7 +44,7 @@ def get_user_store():
         session['guest_id'] = user_key
 
     if user_key not in user_data:
-        user_data[user_key] = {'activities': [], 'goals': []}
+        user_data[user_key] = {'activities': [], 'goals': [], 'year_to_date_miles': None}
 
     return user_data[user_key]
 
@@ -172,7 +172,7 @@ def build_dashboard_stats(store):
     """Build a small summary payload for the dashboard view."""
     activities = store.get('activities', [])
     total_distance = sum(float(item.get('distance', 0) or 0) for item in activities)
-    total_by_type = {'run': 0.0, 'bike': 0.0, 'swim': 0.0}
+    total_by_type = {'run': 0.0, 'bike': 0.0, 'swim': 0.0, 'hike': 0.0}
     recent = []
 
     for item in activities:
@@ -181,6 +181,8 @@ def build_dashboard_stats(store):
             activity_type = 'bike'
         elif activity_type.startswith('swim'):
             activity_type = 'swim'
+        elif activity_type.startswith('hike') or activity_type == 'hiking':
+            activity_type = 'hike'
         else:
             activity_type = 'run'
 
@@ -195,21 +197,13 @@ def build_dashboard_stats(store):
 
     recent = recent[-5:][::-1]
     workout_count = len(activities)
-    average_pace = None
-    pace_values = [item.get('pace_text') for item in activities if item.get('pace_text')]
-    if pace_values:
-        try:
-            pace_numbers = [float(value.split('/')[0].split(':')[0]) + float(value.split('/')[0].split(':')[1]) / 60 for value in pace_values if ':' in value]
-            average_pace = round(sum(pace_numbers) / len(pace_numbers), 2)
-        except (ValueError, IndexError):
-            average_pace = None
 
     return {
         'total_distance': round(total_distance, 2),
         'total_by_type': {key: round(value, 2) for key, value in total_by_type.items()},
         'workout_count': workout_count,
-        'average_pace': average_pace,
         'recent': recent,
+        'year_to_date_miles': store.get('year_to_date_miles'),
     }
 
 
@@ -327,6 +321,7 @@ def register():
         user_data[username] = {
             'activities': [],
             'goals': [],
+            'year_to_date_miles': None,
         }
         session.clear()
         session['user_id'] = username
@@ -345,10 +340,22 @@ def logout():
     return redirect(url_for('home'))
 
 
-@app.route('/dashboard')
+@app.route('/dashboard', methods=['GET', 'POST'])
 def dashboard():
     """Show a dashboard with summaries, funny stats, and recent activity history."""
     store = get_user_store()
+
+    if request.method == 'POST':
+        raw_value = (request.form.get('year_to_date_miles') or '').strip()
+        try:
+            store['year_to_date_miles'] = float(raw_value) if raw_value else None
+        except ValueError:
+            flash('Please enter a valid number of miles.', 'danger')
+            store['year_to_date_miles'] = None
+        else:
+            flash('Year-to-date miles updated.', 'success')
+        return redirect(url_for('dashboard'))
+
     stats = build_dashboard_stats(store)
     funny_stats = build_funny_stats(store)
     return render_template('dashboard.html', stats=stats, funny_stats=funny_stats, goals=store.get('goals', []))
