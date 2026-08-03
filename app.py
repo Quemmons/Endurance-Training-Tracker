@@ -28,9 +28,24 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
 # - /strava/* handles optional Strava integration and activity syncing
 
 # In-memory data stores used by the demo app.
+# Activities and goals are stored per user so one account cannot see another account's data.
 activity_items = []
 goal_items = []
 users = {}
+user_data = {}
+
+
+def get_user_store():
+    """Return the data bucket for the current session, creating one when needed."""
+    user_key = session.get('username') or session.get('guest_id')
+    if not user_key:
+        user_key = secrets.token_hex(8)
+        session['guest_id'] = user_key
+
+    if user_key not in user_data:
+        user_data[user_key] = {'activities': [], 'goals': []}
+
+    return user_data[user_key]
 
 # Strava integration settings used for OAuth login and activity syncing.
 STRAVA_CLIENT_ID = os.environ.get('STRAVA_CLIENT_ID', '260628')
@@ -240,6 +255,10 @@ def register():
             'username': username,
             'password_hash': sha256(password.encode('utf-8')).hexdigest(),
         }
+        user_data[username] = {
+            'activities': [],
+            'goals': [],
+        }
         session['user_id'] = username
         session['username'] = username
         flash('Registration successful. You are now signed in.', 'success')
@@ -286,6 +305,9 @@ def milestones():
 @app.route('/activities', methods=['GET', 'POST'])
 def activities():
     """Handle adding, deleting, and displaying activities."""
+    store = get_user_store()
+    user_activities = store['activities']
+
     if request.method == 'POST':
         action = request.form.get('action')
         if action == 'delete' and request.form.get('activity_index') is not None:
@@ -293,13 +315,13 @@ def activities():
                 index = int(request.form.get('activity_index'))
             except ValueError:
                 index = -1
-            if 0 <= index < len(activity_items):
-                del activity_items[index]
+            if 0 <= index < len(user_activities):
+                del user_activities[index]
                 flash('Activity removed.', 'info')
             return redirect(url_for('activities'))
 
         if request.form.get('name'):
-            activity_items.append({
+            user_activities.append({
                 'name': request.form.get('name'),
                 'type': request.form.get('type', 'Run'),
                 'start_date': datetime.utcnow().strftime('%Y-%m-%d %H:%M'),
@@ -315,11 +337,11 @@ def activities():
     if strava_connected:
         for item in fetch_strava_activities(session['strava_access_token']):
             strava_id = item.get('id')
-            if any(act.get('strava_id') == strava_id for act in activity_items if act.get('strava_id') is not None):
+            if any(act.get('strava_id') == strava_id for act in user_activities if act.get('strava_id') is not None):
                 continue
             raw_start = item.get('start_date_local', '')
             duration_seconds = item.get('moving_time', item.get('elapsed_time', 0)) or 0
-            activity_items.append({
+            user_activities.append({
                 'name': item.get('name') or 'Strava activity',
                 'type': item.get('type', 'Run'),
                 'start_date': format_activity_start_date(raw_start),
@@ -331,7 +353,7 @@ def activities():
             })
 
     rows = []
-    for index, item in enumerate(activity_items):
+    for index, item in enumerate(user_activities):
         activity_name = item.get('name', 'Workout')
         activity_type = item.get('type', 'Run')
         activity_date = item.get('start_date', 'Unknown date')
@@ -389,8 +411,10 @@ def activities():
 @app.route('/goals', endpoint='view_goals')
 def goals():
     """Show the current goals list as a simple placeholder."""
+    store = get_user_store()
+    user_goals = store['goals']
     rows = ''.join(
-        f'<li>{item}</li>' for item in goal_items
+        f'<li>{item}</li>' for item in user_goals
     ) or '<li>No goals yet.</li>'
 
     body = f'''
@@ -463,14 +487,16 @@ def strava_sync():
         flash('Connect Strava first before syncing activities.', 'warning')
         return redirect(url_for('activities'))
 
+    store = get_user_store()
+    user_activities = store['activities']
     fetched = fetch_strava_activities(session['strava_access_token'])
     count = 0
     for item in fetched:
         strava_id = item.get('id')
-        if any(act.get('strava_id') == strava_id for act in activity_items if act.get('strava_id') is not None):
+        if any(act.get('strava_id') == strava_id for act in user_activities if act.get('strava_id') is not None):
             continue
 
-        activity_items.append({
+        user_activities.append({
             'name': item.get('name') or 'Strava activity',
             'type': item.get('type', 'Run'),
             'start_date': item.get('start_date_local', '').replace('T', ' '),

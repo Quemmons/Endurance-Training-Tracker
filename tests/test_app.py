@@ -53,3 +53,22 @@ def test_activities_page_renders_and_accepts_post():
 
     follow_up = client.get('/activities')
     assert b'Tempo run' in follow_up.data
+
+
+def test_registered_users_do_not_share_activity_data():
+    app_module = importlib.import_module('app')
+    first_user = f'user_a_{uuid.uuid4().hex[:8]}'
+    second_user = f'user_b_{uuid.uuid4().hex[:8]}'
+
+    first_client = app_module.app.test_client()
+    second_client = app_module.app.test_client()
+
+    first_client.post('/register', data={'username': first_user, 'password': 'secret123'})
+    second_client.post('/register', data={'username': second_user, 'password': 'secret123'})
+
+    first_client.post('/activities', data={'name': 'Private tempo run'})
+    first_response = first_client.get('/activities')
+    second_response = second_client.get('/activities')
+
+    assert b'Private tempo run' in first_response.data
+    assert b'Private tempo run' not in second_response.data
