@@ -7,6 +7,27 @@ body {
   color: #67A686;
 }
 
+body .navbar {
+  background-color: #67A686 !important;
+}
+
+body .navbar .navbar-brand,
+body .navbar .nav-link {
+  color: #000000 !important;
+}
+
+body .btn-primary,
+body .btn-outline-primary {
+  background-color: #67A686 !important;
+  border-color: #67A686 !important;
+  color: #000000 !important;
+}
+
+body .btn-outline-primary {
+  background-color: transparent !important;
+  border: 1px solid #67A686 !important;
+}
+
 /* Dark mode overrides */
 body.theme-dark {
   background: #0f1115;
@@ -90,6 +111,10 @@ body.theme-dark .activity-card__top strong {
   flex-direction: column;
   align-items: center;
   gap: 0.85rem;
+  background: #f3f3f3;
+  border: 1px solid #67A686;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
 }
 
 .home-text {
