@@ -225,6 +225,7 @@ def login():
         stored_user = users.get(username)
 
         if stored_user and stored_user['password_hash'] == sha256(password.encode('utf-8')).hexdigest():
+            session.clear()
             session['user_id'] = username
             session['username'] = username
             flash('Welcome back!', 'success')
@@ -259,6 +260,7 @@ def register():
             'activities': [],
             'goals': [],
         }
+        session.clear()
         session['user_id'] = username
         session['username'] = username
         flash('Registration successful. You are now signed in.', 'success')
@@ -270,12 +272,7 @@ def register():
 @app.route('/logout')
 def logout():
     """Clear the current session and return the user to the home page."""
-    session.pop('user_id', None)
-    session.pop('username', None)
-    session.pop('strava_access_token', None)
-    session.pop('strava_refresh_token', None)
-    session.pop('strava_athlete_id', None)
-    session.pop('strava_oauth_state', None)
+    session.clear()
     flash('You have been logged out.', 'info')
     return redirect(url_for('home'))
 
