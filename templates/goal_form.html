@@ -10,10 +10,7 @@
           <div class="mb-3">
             <label class="form-label">Goal type</label>
             <select class="form-select" name="goal_type" required>
-              <option value="">Select goal type</option>
-              {% for type in goal_types %}
-              <option value="{{ type }}" {% if goal and goal['goal_type'] == type %}selected{% endif %}>{{ type.capitalize() }}</option>
-              {% endfor %}
+              <option value="run" selected>Run</option>
             </select>
           </div>
           <div class="mb-3">

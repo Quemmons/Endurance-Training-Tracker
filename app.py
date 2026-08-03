@@ -169,15 +169,14 @@ def format_pace_minutes_per_mile(average_speed_mps):
 
 
 def normalize_activity_type(activity_type):
-    """Convert a raw activity type into a normalized dashboard category."""
-    activity_type = (activity_type or 'Run').lower()
-    if activity_type.startswith('bike') or activity_type == 'ride':
-        return 'bike'
-    if activity_type.startswith('swim'):
-        return 'swim'
-    if activity_type.startswith('hike') or activity_type == 'hiking':
-        return 'hike'
+    """Normalize all activities to the running-only category used by the app."""
     return 'run'
+
+
+def is_run_activity(activity):
+    """Return True when a Strava activity should be imported into the running tracker."""
+    activity_type = (activity or {}).get('type', 'Run')
+    return str(activity_type).strip().lower() == 'run'
 
 
 def get_yearly_total(store):
@@ -192,19 +191,14 @@ def update_goal_progress(store):
     """Refresh each goal's progress based on the shared yearly mileage total."""
     yearly_total = get_yearly_total(store)
     for goal in store.get('goals', []):
-        goal_type = normalize_activity_type(goal.get('goal_type'))
-        if goal_type == 'run':
-            progress = yearly_total
-        else:
-            progress = 0.0
-        goal['current_progress'] = round(float(progress), 2)
+        goal['current_progress'] = round(float(yearly_total), 2)
 
 
 def build_dashboard_stats(store):
     """Build a small summary payload for the dashboard view."""
     activities = store.get('activities', [])
     total_distance = sum(float(item.get('distance', 0) or 0) for item in activities)
-    total_by_type = {'run': 0.0, 'bike': 0.0, 'swim': 0.0, 'hike': 0.0}
+    total_by_type = {'run': 0.0}
     recent = []
 
     for item in activities:
@@ -413,7 +407,7 @@ def activities():
         if request.form.get('name'):
             user_activities.append({
                 'name': request.form.get('name'),
-                'type': request.form.get('type', 'Run'),
+                'type': 'Run',
                 'start_date': datetime.utcnow().strftime('%Y-%m-%d %H:%M'),
                 'distance': 0,
                 'duration_seconds': 0,
@@ -430,6 +424,8 @@ def activities():
         flash('Tip: connect Strava on the activities page to sync your training history.', 'info')
     if strava_connected:
         for item in fetch_strava_activities(session['strava_access_token']):
+            if not is_run_activity(item):
+                continue
             strava_id = item.get('id')
             if any(act.get('strava_id') == strava_id for act in user_activities if act.get('strava_id') is not None):
                 continue
@@ -437,7 +433,7 @@ def activities():
             duration_seconds = item.get('moving_time', item.get('elapsed_time', 0)) or 0
             user_activities.append({
                 'name': item.get('name') or 'Strava activity',
-                'type': item.get('type', 'Run'),
+                'type': 'Run',
                 'start_date': format_activity_start_date(raw_start),
                 'distance': round(item.get('distance', 0) / 1609.34, 2),
                 'duration_seconds': duration_seconds,
@@ -517,6 +513,10 @@ def goals():
 
         if not goal_type or not target_value or not start_date or not end_date:
             flash('Please fill in all goal fields.', 'danger')
+            return redirect(url_for('view_goals'))
+
+        if goal_type != 'run':
+            flash('Only running goals are supported right now.', 'danger')
             return redirect(url_for('view_goals'))
 
         try:
@@ -608,13 +608,15 @@ def strava_sync():
     fetched = fetch_strava_activities(session['strava_access_token'])
     count = 0
     for item in fetched:
+        if not is_run_activity(item):
+            continue
         strava_id = item.get('id')
         if any(act.get('strava_id') == strava_id for act in user_activities if act.get('strava_id') is not None):
             continue
 
         user_activities.append({
             'name': item.get('name') or 'Strava activity',
-            'type': item.get('type', 'Run'),
+            'type': 'Run',
             'start_date': item.get('start_date_local', '').replace('T', ' '),
             'distance': round(item.get('distance', 0) / 1609.34, 2),
             'source': 'strava',

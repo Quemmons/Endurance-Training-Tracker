@@ -15,7 +15,7 @@ def test_home_page_uses_template_content():
 
     response = client.get('/')
     assert response.status_code == 200
-    assert b'Track runs, rides, swims, and progress toward your goals.' in response.data
+    assert b'Track your runs, discover random stats, and reach milestones.' in response.data
 
 
 def test_registration_creates_user_and_logs_in():
@@ -116,6 +116,27 @@ def test_dashboard_accepts_manual_year_to_date_miles():
     assert response.status_code == 200
     assert b'320.5' in response.data
     assert b'Year-to-date miles' in response.data
+
+
+def test_strava_sync_only_imports_run_activities(monkeypatch):
+    app_module = importlib.import_module('app')
+    client = app_module.app.test_client()
+    username = f'strava_run_only_{uuid.uuid4().hex[:8]}'
+
+    client.post('/register', data={'username': username, 'password': 'secret123'})
+    with client.session_transaction() as session:
+        session['strava_access_token'] = 'token'
+
+    monkeypatch.setattr(app_module, 'fetch_strava_activities', lambda token: [
+        {'id': 1, 'name': 'Morning run', 'type': 'Run', 'start_date_local': '2026-01-01T08:00:00Z', 'distance': 1609.34, 'moving_time': 3600},
+        {'id': 2, 'name': 'Bike ride', 'type': 'Ride', 'start_date_local': '2026-01-02T08:00:00Z', 'distance': 20000, 'moving_time': 3600},
+    ])
+
+    response = client.get('/activities')
+
+    assert response.status_code == 200
+    assert b'Morning run' in response.data
+    assert b'Bike ride' not in response.data
 
 
 def test_goals_reflect_shared_yearly_mileage_progress():

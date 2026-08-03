@@ -14,8 +14,6 @@
       <label class="form-label">Goal type</label>
       <select class="form-select" name="goal_type" required>
         <option value="run">Run</option>
-        <option value="bike">Bike</option>
-        <option value="swim">Swim</option>
       </select>
     </div>
     <div class="col-md-4">
@@ -43,7 +41,7 @@
   <div class="col-md-6 mb-3">
     <div class="card shadow-sm h-100">
       <div class="card-body">
-        <h5 class="card-title">{{ goal.goal_type|capitalize }} goal</h5>
+        <h5 class="card-title">Run goal</h5>
         <p class="text-muted mb-2">{{ goal.description or 'Mileage goal' }}</p>
         <p class="mb-1"><strong>{{ goal.current_progress }}/{{ goal.target_value }} miles</strong></p>
         <p class="mb-1 text-muted">{{ goal.start_date }} → {{ goal.end_date }}</p>
