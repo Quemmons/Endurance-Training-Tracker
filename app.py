@@ -21,6 +21,12 @@ from flask import (
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
 
+# App flow overview:
+# - / shows the landing page
+# - /login and /register handle authentication
+# - /dashboard, /activities, /goals, /milestones, and /profile are the main app pages
+# - /strava/* handles optional Strava integration and activity syncing
+
 # In-memory data stores used by the demo app.
 activity_items = []
 goal_items = []
@@ -52,24 +58,6 @@ def build_strava_auth_url():
         'state': state,
     }
     return f"{STRAVA_AUTH_URL}?{urlencode(params)}"
-
-
-def upload_activity_to_strava(access_token, name):
-    """Send a demo workout to Strava using the supplied access token."""
-    payload = {
-        'name': name,
-        'type': 'Run',
-        'start_date_local': datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-        'elapsed_time': 1800,
-        'distance': 5000,
-        'description': 'Uploaded from the Milestones shell',
-    }
-    return requests.post(
-        f'{STRAVA_API_URL}/activities',
-        headers={'Authorization': f'Bearer {access_token}'},
-        data=payload,
-        timeout=30,
-    )
 
 
 def fetch_strava_activities(access_token):
