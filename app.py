@@ -10,8 +10,6 @@ from flask import Flask, flash, get_flashed_messages, redirect, render_template_
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
 
-# In-memory placeholder storage. Replace this with a real database later.
-# Each activity is stored as a dictionary so the UI can show details like name, date, distance, and source.
 activity_items = []
 goal_items = []
 
@@ -193,8 +191,8 @@ def page(title, body):
 def home():
     """Show the landing page for the Milestones app."""
     body = '''
-        <p>This is a stripped-down shell for your Milestones app.</p>
-        <p>Use this file to add the real pieces one by one.</p>
+        <p class="home-text">Welcome to Milestones!</p>
+        <p class="home-text">The place to track fitness activities, discovering random stats, and achieving milestones!</p>
     '''
     return page('Home', body)
 
