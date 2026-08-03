@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
 {% block title %}Welcome – Milestones{% endblock %}
 {% block content %}
-<div class="text-center py-5">
-  <h1 class="display-5">Milestones</h1>
-  <p class="lead">Track runs, rides, swims, and progress toward your goals.</p>
-  <div class="d-flex justify-content-center gap-3 mt-4">
+<div class="home-hero panel text-center">
+  <h1 class="display-5 home-text">Milestones</h1>
+  <p class="lead home-text">Track runs, rides, swims, and progress toward your goals.</p>
+  <div class="d-flex flex-wrap justify-content-center gap-3 mt-2">
     <a class="btn btn-primary btn-lg" href="{{ url_for('login') }}">Login</a>
     <a class="btn btn-outline-primary btn-lg" href="{{ url_for('register') }}">Register</a>
   </div>

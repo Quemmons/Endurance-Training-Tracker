@@ -4,7 +4,7 @@ import secrets
 from urllib.parse import urlencode
 
 import requests
-from flask import Flask, flash, get_flashed_messages, redirect, render_template_string, request, session, url_for
+from flask import Flask, flash, get_flashed_messages, redirect, render_template, render_template_string, request, session, url_for
 
 # Create the Flask web app. This is the main entry point for the tracker.
 app = Flask(__name__)
@@ -190,16 +190,30 @@ def page(title, body):
 @app.route('/')
 def home():
     """Show the landing page for the Milestones app."""
-    body = '''
-        <p class="home-text">Welcome to Milestones!</p>
-        <p class="home-text">The place to track fitness activities, discovering random stats, and achieving milestones!</p>
-    '''
-    return page('Home', body)
+    return render_template('home.html')
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Render the login page for the template-based auth flow."""
+    if request.method == 'POST':
+        flash('Login is not implemented yet. Please register or use the existing demo flow.', 'info')
+        return redirect(url_for('home'))
+    return render_template('login.html')
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    """Render the registration page for the template-based auth flow."""
+    if request.method == 'POST':
+        flash('Registration is not implemented yet. Please come back later.', 'info')
+        return redirect(url_for('home'))
+    return render_template('register.html')
 
 
 @app.route('/dashboard')
 def dashboard():
-    """Show the dashboard placeholder for future stats and summaries."""
+    """Show the dashboard placeolder for future stats and summaries."""
     body = '''
         <p>Dashboard placeholder.</p>
         <p>TODO: calculate totals, weekly trends, and recent activity summaries here.</p>

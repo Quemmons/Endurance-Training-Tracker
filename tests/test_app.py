@@ -8,6 +8,15 @@ def test_calculate_pace_from_strava_speed():
     assert format_pace_minutes_per_mile(2.2352) == '12:00/mi'
 
 
+def test_home_page_uses_template_content():
+    app_module = importlib.import_module('app')
+    client = app_module.app.test_client()
+
+    response = client.get('/')
+    assert response.status_code == 200
+    assert b'Track runs, rides, swims, and progress toward your goals.' in response.data
+
+
 def test_activities_page_renders_and_accepts_post():
     app_module = importlib.import_module('app')
     client = app_module.app.test_client()
