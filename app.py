@@ -168,6 +168,38 @@ def format_pace_minutes_per_mile(average_speed_mps):
     return f'{whole_minutes}:{seconds:02d}/mi'
 
 
+def normalize_activity_type(activity_type):
+    """Convert a raw activity type into a normalized dashboard category."""
+    activity_type = (activity_type or 'Run').lower()
+    if activity_type.startswith('bike') or activity_type == 'ride':
+        return 'bike'
+    if activity_type.startswith('swim'):
+        return 'swim'
+    if activity_type.startswith('hike') or activity_type == 'hiking':
+        return 'hike'
+    return 'run'
+
+
+def get_yearly_total(store):
+    """Return the effective yearly mileage total, combining manual and logged activity miles."""
+    activities = store.get('activities', [])
+    manual_total = store.get('year_to_date_miles') or 0
+    activity_total = sum(float(item.get('distance', 0) or 0) for item in activities)
+    return round(float(manual_total) + float(activity_total), 2)
+
+
+def update_goal_progress(store):
+    """Refresh each goal's progress based on the shared yearly mileage total."""
+    yearly_total = get_yearly_total(store)
+    for goal in store.get('goals', []):
+        goal_type = normalize_activity_type(goal.get('goal_type'))
+        if goal_type == 'run':
+            progress = yearly_total
+        else:
+            progress = 0.0
+        goal['current_progress'] = round(float(progress), 2)
+
+
 def build_dashboard_stats(store):
     """Build a small summary payload for the dashboard view."""
     activities = store.get('activities', [])
@@ -176,16 +208,7 @@ def build_dashboard_stats(store):
     recent = []
 
     for item in activities:
-        activity_type = (item.get('type') or 'Run').lower()
-        if activity_type.startswith('bike') or activity_type == 'ride':
-            activity_type = 'bike'
-        elif activity_type.startswith('swim'):
-            activity_type = 'swim'
-        elif activity_type.startswith('hike') or activity_type == 'hiking':
-            activity_type = 'hike'
-        else:
-            activity_type = 'run'
-
+        activity_type = normalize_activity_type(item.get('type'))
         total_by_type[activity_type] += float(item.get('distance', 0) or 0)
         recent.append({
             'name': item.get('name', 'Workout'),
@@ -197,6 +220,7 @@ def build_dashboard_stats(store):
 
     recent = recent[-5:][::-1]
     workout_count = len(activities)
+    update_goal_progress(store)
 
     return {
         'total_distance': round(total_distance, 2),
@@ -204,13 +228,13 @@ def build_dashboard_stats(store):
         'workout_count': workout_count,
         'recent': recent,
         'year_to_date_miles': store.get('year_to_date_miles'),
+        'effective_yearly_total': get_yearly_total(store),
     }
 
 
 def build_funny_stats(store):
     """Create placeholder funny stats for the dashboard."""
-    activities = store.get('activities', [])
-    total_distance = sum(float(item.get('distance', 0) or 0) for item in activities)
+    total_distance = get_yearly_total(store)
     return [
         {
             'title': 'School bus lengths run',
@@ -383,6 +407,7 @@ def activities():
             if 0 <= index < len(user_activities):
                 del user_activities[index]
                 flash('Activity removed.', 'info')
+            update_goal_progress(store)
             return redirect(url_for('activities'))
 
         if request.form.get('name'):
@@ -395,10 +420,12 @@ def activities():
                 'source': 'local',
             })
             flash('Activity added.', 'success')
+            update_goal_progress(store)
             return redirect(url_for('activities'))
 
     # When the page loads, show Strava-connected activities and the recent activity list.
     strava_connected = 'strava_access_token' in session
+    update_goal_progress(store)
     if not strava_connected and not user_activities:
         flash('Tip: connect Strava on the activities page to sync your training history.', 'info')
     if strava_connected:
@@ -507,9 +534,11 @@ def goals():
             'end_date': end_date,
             'description': description or f'{goal_type.capitalize()} goal',
         })
+        update_goal_progress(store)
         flash('Goal created.', 'success')
         return redirect(url_for('view_goals'))
 
+    update_goal_progress(store)
     return render_template('goals.html', goals=user_goals)
 
 

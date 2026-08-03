@@ -116,3 +116,23 @@ def test_dashboard_accepts_manual_year_to_date_miles():
     assert response.status_code == 200
     assert b'320.5' in response.data
     assert b'Year-to-date miles' in response.data
+
+
+def test_goals_reflect_shared_yearly_mileage_progress():
+    app_module = importlib.import_module('app')
+    client = app_module.app.test_client()
+    username = f'goalprogress_{uuid.uuid4().hex[:8]}'
+
+    client.post('/register', data={'username': username, 'password': 'secret123'})
+    client.post('/goals', data={
+        'goal_type': 'run',
+        'target_value': '20',
+        'start_date': '2026-01-01',
+        'end_date': '2026-02-01',
+        'description': 'Run 20 miles',
+    })
+    client.post('/dashboard', data={'year_to_date_miles': '5'})
+    response = client.get('/goals')
+
+    assert response.status_code == 200
+    assert b'5.0/20.0 miles' in response.data

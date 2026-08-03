@@ -10,7 +10,7 @@
   <div class="col-lg-8">
     <div class="card p-3 shadow-sm mb-3">
       <h5>Year-to-date miles</h5>
-      <p class="text-muted small mb-3">If Strava missed some runs, enter the real total here so the stats stay accurate.</p>
+      <p class="text-muted small mb-3">If Strava missed some runs, enter the real total here so the dashboard and goals stay accurate.</p>
       <form method="post" class="row g-2 align-items-end">
         <div class="col-md-8">
           <label class="form-label">Miles run so far this year</label>
@@ -51,8 +51,9 @@
       </div>
       <div class="col-md-4">
         <div class="card p-3 shadow-sm h-100">
-          <h6 class="text-muted">Lifetime distance</h6>
-          <p class="fs-3 mb-0">{{ stats.total_distance }} mi</p>
+          <h6 class="text-muted">Yearly total</h6>
+          <p class="fs-3 mb-0">{{ stats.effective_yearly_total }} mi</p>
+          <p class="small text-muted mb-0">Manual entry + logged activity miles</p>
         </div>
       </div>
       <div class="col-md-4">
