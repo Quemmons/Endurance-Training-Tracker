@@ -1,156 +1,109 @@
-```html
 {% extends 'base.html' %}
-
 {% block title %}Dashboard – Milestones{% endblock %}
-
 {% block content %}
-
 <div class="mb-4">
-    <h1 class="h2">Dashboard</h1>
-    <p class="text-muted">
-        Your training summary, milestones, and goals.
-    </p>
+  <h1 class="h2">Hello, {{ session.username }}.</h1>
+  <p class="text-muted">Your training summary lives here, and the silly stats are waiting for your next run.</p>
 </div>
-
-
-{% if not strava_connected %}
-<div class="alert alert-warning">
-    You are not connected to Strava.
-    Go to the
-    <a href="{{ url_for('activities') }}">Activities page</a>
-    to connect your account and import runs.
-</div>
-{% endif %}
-
-
-
-<h3 class="mt-4 mb-3">Stats</h3>
 
 <div class="row g-4">
-
-    <div class="col-md-4">
-        <div class="card shadow-sm h-100">
-            <div class="card-body">
-                <p class="text-muted mb-1">Total Miles</p>
-                <h2 class="mb-0">{{ stats.total_distance }} mi</h2>
-            </div>
+  <div class="col-lg-8">
+    <div class="card p-3 shadow-sm mb-3">
+      <h5>Year-to-date miles</h5>
+      <p class="text-muted small mb-3">If Strava missed some runs, enter the real total here so the dashboard and goals stay accurate.</p>
+      <form method="post" class="row g-2 align-items-end">
+        <div class="col-md-8">
+          <label class="form-label">Miles run so far this year</label>
+          <input class="form-control" type="number" step="0.1" name="year_to_date_miles" value="{{ stats.year_to_date_miles if stats.year_to_date_miles is not none else '' }}">
         </div>
+        <div class="col-md-4">
+          <button class="btn btn-primary w-100">Save</button>
+        </div>
+      </form>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-4">
+        <div class="card p-3 shadow-sm h-100">
+          <h6 class="text-muted">Run miles</h6>
+          <p class="display-6 mb-0">{{ stats.total_by_type['run'] }}</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card p-3 shadow-sm h-100">
+          <h6 class="text-muted">Workouts</h6>
+          <p class="fs-3 mb-0">{{ stats.workout_count }}</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card p-3 shadow-sm h-100">
+          <h6 class="text-muted">Yearly total</h6>
+          <p class="fs-3 mb-0">{{ stats.effective_yearly_total }} mi</p>
+          <p class="small text-muted mb-0">Manual entry + logged runs</p>
+        </div>
+      </div>
     </div>
 
-
-    <div class="col-md-4">
-        <div class="card shadow-sm h-100">
-            <div class="card-body">
-                <p class="text-muted mb-1">Total Workouts</p>
-                <h2 class="mb-0">{{ stats.workout_count }}</h2>
+    <div class="card p-3 shadow-sm mt-3">
+      <h5 class="mb-3">Recent activities</h5>
+      {% if stats.recent %}
+      <ul class="list-group list-group-flush">
+        {% for activity in stats.recent %}
+        <li class="list-group-item px-0 py-3">
+          <div class="d-flex justify-content-between align-items-start gap-3">
+            <div>
+              <strong>{{ activity.name }}</strong>
+              <div class="small text-muted">{{ activity.type|capitalize }} • {{ activity.distance }} mi • {{ activity.date }}</div>
             </div>
-        </div>
+            <span class="badge bg-light text-dark">{{ activity.source }}</span>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-muted mb-0">No activities yet. Add one from the activities page.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card p-3 shadow-sm mb-3">
+      <h5>Milestones</h5>
+      <p class="text-muted small">See your running in ways you've probably never imagined.</p>
+      {% for stat in funny_stats %}
+      <div class="border rounded p-3 mb-3">
+        <h6 class="text-muted mb-2">{{ stat.title }}</h6>
+
+        <p class="fw-bold fs-5 mb-2">
+          {{ stat.value }}
+        </p>
+
+        <p class="small text-muted mb-0">
+          {{ stat.detail }}
+        </p>
+      </div>
+      {% endfor %}
     </div>
 
-
-    <div class="col-md-4">
-        <div class="card shadow-sm h-100">
-            <div class="card-body">
-                <p class="text-muted mb-1">Running Miles</p>
-                <h2 class="mb-0">{{ stats.total_by_type.run }} mi</h2>
-            </div>
+    <div class="card p-3 shadow-sm">
+      <h5>Current goals</h5>
+      {% if goals %}
+      {% for goal in goals %}
+      <div class="border rounded p-3 mb-2">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h6 class="mb-1">{{ goal.description }}</h6>
+            <p class="small text-muted mb-0">{{ goal.goal_type|capitalize }} • {{ goal.current_progress }}/{{ goal.target_value }} mi</p>
+          </div>
         </div>
-    </div>
-
-</div>
-
-
-
-
-<h3 class="mt-5 mb-3">Milestones</h3>
-
-<div class="row g-4">
-
-{% for milestone in milestones %}
-
-    <div class="col-md-4">
-        <div class="card shadow-sm h-100">
-
-            <div class="card-body">
-
-                <h5 class="card-title">
-                    {{ milestone.title }}
-                </h5>
-
-                <p class="card-text">
-                    {{ milestone.value }}
-                </p>
-
-                <small class="text-muted">
-                    {{ milestone.detail }}
-                </small>
-
-            </div>
-
+        <div class="progress mt-2" style="height: 8px;">
+          <div class="progress-bar" style="width: {{ goal.progress_percent }}%"></div>
         </div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <p class="text-muted mb-0">No goals yet. Add one from the goals page.</p>
+      {% endif %}
     </div>
-
-{% endfor %}
-
+  </div>
 </div>
-
-
-
-
-<h3 class="mt-5 mb-3">Goals</h3>
-
-
-{% if goals %}
-
-<div class="row g-4">
-
-{% for goal in goals %}
-
-<div class="col-md-6">
-
-    <div class="card shadow-sm">
-
-        <div class="card-body">
-
-            <h5 class="card-title">
-                {{ goal.description }}
-            </h5>
-
-
-            <p class="mb-2">
-                {{ goal.current_progress }} /
-                {{ goal.target_value }}
-            </p>
-
-
-            <div class="progress">
-
-              <div class="progress-bar"
-                style="width: {{ [((goal.current_progress / goal.target_value * 100)|round), 100]|min if goal.target_value else 0 }}%">
-              </div>
-
-            </div>
-
-
-        </div>
-
-    </div>
-
-</div>
-
-{% endfor %}
-
-</div>
-
-
-{% else %}
-
-<div class="alert alert-info">
-    No goals yet. Create one on the Goals page.
-</div>
-
-{% endif %}
-
-
 {% endblock %}
-```
