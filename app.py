@@ -1,4 +1,5 @@
-from datetime import datetime
+from datetime import datetime, timedelta
+import random
 import os
 import secrets
 from hashlib import sha256
@@ -186,6 +187,27 @@ def get_yearly_total(store):
     activity_total = sum(float(item.get('distance', 0) or 0) for item in activities)
     return round(float(manual_total) + float(activity_total), 2)
 
+def get_weekly_total(store):
+    """Return miles run in the last 7 days."""
+    total = 0
+
+    for activity in store.get("activities", []):
+        try:
+            date = datetime.strptime(activity["start_date"][:10], "%Y-%m-%d")
+            if date >= datetime.now() - timedelta(days=7):
+                total += float(activity.get("distance", 0))
+        except:
+            pass
+
+    return round(total, 2)
+
+
+def get_last_run(store):
+    """Return the distance of the most recent run."""
+    activities = store.get("activities", [])
+    if not activities:
+        return 0
+    return float(activities[-1].get("distance", 0))
 
 def update_goal_progress(store):
     """Refresh each goal's progress based on the shared yearly mileage total."""
@@ -197,7 +219,7 @@ def update_goal_progress(store):
 def build_dashboard_stats(store):
     """Build a small summary payload for the dashboard view."""
     activities = store.get('activities', [])
-    total_distance = sum(float(item.get('distance', 0) or 0) for item in activities)
+    total_distance = get_yearly_total(store)
     total_by_type = {'run': 0.0}
     recent = []
 
@@ -227,25 +249,87 @@ def build_dashboard_stats(store):
 
 
 def build_funny_stats(store):
-    """Create placeholder funny stats for the dashboard."""
-    total_distance = get_yearly_total(store)
-    return [
+    """Generate three random fun facts."""
+
+    yearly = get_yearly_total(store)
+
+    stats = [
         {
-            'title': 'School bus lengths run',
-            'value': round(total_distance / 45, 1),
-            'detail': 'A school bus is about 45 feet long.',
+            "title": "🦒 Giraffes",
+            "value": f"You've run the length of {yearly * 5280 / 18:,.0f} giraffes.",
+            "detail": "An average giraffe is about 18 feet tall."
         },
+
         {
-            'title': 'Marathons completed',
-            'value': round(total_distance / 26.2, 1),
-            'detail': 'Because every training log deserves a dramatic comparison.',
+            "title": "🗽 Statue of Libraries",
+            "value": f"You've climbed {yearly * 5280 / 305:,.0f} Statue of Liberty heights.",
+            "detail": "The Statue of Liberty is 305 feet tall."
         },
+
         {
-            'title': 'Coffee-fueled miles',
-            'value': round(total_distance / 10, 1),
-            'detail': 'A very optimistic estimate for your pace.',
+            "title": "🧱 LEGO Bricks",
+            "value": f"You've covered {yearly * 1609344 / 31.8:,.0f} LEGO bricks.",
+            "detail": "A LEGO brick is about 31.8 mm long."
+        },
+
+        {
+            "title": "🏊 Olympic Pools",
+            "value": f"You've run the length of {yearly / 0.0311:,.0f} Olympic pools.",
+            "detail": "One Olympic pool is 50 meters long."
+        },
+
+        {
+            "title": "🚌 School Buses",
+            "value": f"You've run the length of {yearly * 5280 / 45:,.0f} school buses this year.",
+            "detail": "A school bus is about 45 feet long."
+        },
+
+        {
+            "title": "🏅 Marathons",
+            "value": f"You've run farther than {yearly / 26.2:.1f} marathons.",
+            "detail": "26.2 miles each."
+        },
+
+        {
+            "title": "🏈 Football Fields",
+            "value": f"You've crossed {yearly / 0.0682:,.0f} football fields.",
+            "detail": "Including the end zones."
+        },
+
+        {
+            "title": "🌎 Around Earth",
+            "value": f"You've traveled {100 * yearly / 6783.5:.2f}% around Earth.",
+            "detail": "Earth's circumference is about 6,783.5 miles."
+        },
+
+        {
+            "title": "🌙 Moon",
+            "value": f"You're {100 * yearly / 238900:.3f}% of the way to the Moon.",
+            "detail": "Keep running!"
+        },
+
+        {
+            "title": "🐜 Ants",
+            "value": f"Your miles equal about {yearly * 316800 / 1_000_000:.1f} million ants lined up.",
+            "detail": "Assuming each ant is about one inch long."
+        },
+
+        {
+            "title": "🏃 Track Laps",
+            "value": f"You've run {yearly / 0.2485:,.0f} laps of a 400m track.",
+            "detail": "That's a lot of circles."
+        },
+
+        {
+            "title": "🚗 Across Texas",
+            "value": f"You've crossed Texas {yearly / 801:.2f} times.",
+            "detail": "Texas is about 801 miles wide."
         },
     ]
+
+    random.shuffle(stats)
+
+    return stats[:3]
 
 
 def page(title, body):

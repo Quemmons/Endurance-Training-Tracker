@@ -67,13 +67,19 @@
 
   <div class="col-lg-4">
     <div class="card p-3 shadow-sm mb-3">
-      <h5>Crazy funny stats</h5>
-      <p class="text-muted small">This is where the ridiculous comparisons live.</p>
+      <h5>Milestones</h5>
+      <p class="text-muted small">See your running in ways you've probably never imagined.</p>
       {% for stat in funny_stats %}
-      <div class="border rounded p-3 mb-2">
-        <h6 class="mb-1">{{ stat.title }}</h6>
-        <p class="display-6 mb-1">{{ stat.value }}</p>
-        <p class="small text-muted mb-0">{{ stat.detail }}</p>
+      <div class="border rounded p-3 mb-3">
+        <h6 class="text-muted mb-2">{{ stat.title }}</h6>
+
+        <p class="fw-bold fs-5 mb-2">
+          {{ stat.value }}
+        </p>
+
+        <p class="small text-muted mb-0">
+          {{ stat.detail }}
+        </p>
       </div>
       {% endfor %}
     </div>
