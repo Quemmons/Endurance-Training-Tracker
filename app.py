@@ -214,6 +214,12 @@ def update_goal_progress(store):
     yearly_total = get_yearly_total(store)
     for goal in store.get('goals', []):
         goal['current_progress'] = round(float(yearly_total), 2)
+        target = float(goal.get('target_value') or 0)
+        if target > 0:
+            percent = (goal['current_progress'] / target) * 100
+        else:
+            percent = 0
+        goal['progress_percent'] = round(min(max(percent, 0), 100), 1)
 
 
 def build_dashboard_stats(store):
