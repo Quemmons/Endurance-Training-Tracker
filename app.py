@@ -23,6 +23,10 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
 app.config['JSON_SORT_KEYS'] = False
 
+app.jinja_env.globals.update(
+    format_duration_seconds=format_duration_seconds
+)
+
 # App flow overview:
 # - / shows the landing page
 # - /login and /register handle authentication
@@ -217,32 +221,26 @@ def update_goal_progress(store):
 
 
 def build_dashboard_stats(store):
-    """Build a small summary payload for the dashboard view."""
+    """Build summary statistics for the dashboard."""
     activities = store.get('activities', [])
-    total_distance = get_yearly_total(store)
+
     total_by_type = {'run': 0.0}
-    recent = []
 
     for item in activities:
         activity_type = normalize_activity_type(item.get('type'))
         total_by_type[activity_type] += float(item.get('distance', 0) or 0)
-        recent.append({
-            'name': item.get('name', 'Workout'),
-            'type': activity_type,
-            'distance': item.get('distance', 0),
-            'date': item.get('start_date', ''),
-            'source': item.get('source', 'local'),
-        })
 
-    recent = recent[-5:][::-1]
     workout_count = len(activities)
+
     update_goal_progress(store)
 
     return {
-        'total_distance': round(total_distance, 2),
-        'total_by_type': {key: round(value, 2) for key, value in total_by_type.items()},
+        'total_distance': round(get_yearly_total(store), 2),
+        'total_by_type': {
+            key: round(value, 2)
+            for key, value in total_by_type.items()
+        },
         'workout_count': workout_count,
-        'recent': recent,
         'year_to_date_miles': store.get('year_to_date_miles'),
         'effective_yearly_total': get_yearly_total(store),
     }
@@ -332,48 +330,6 @@ def build_funny_stats(store):
     return stats[:3]
 
 
-def page(title, body):
-    """Render the shared page shell with navigation, flash messages, and theme support."""
-    messages = ''.join(
-        f'<p class="{category}">{message}</p>'
-        for category, message in get_flashed_messages(with_categories=True)
-    )
-    dark_mode = 'dark' if session.get('dark_mode') else 'light'
-    return render_template_string('''
-        <!doctype html>
-        <html>
-          <head>
-            <meta charset="utf-8" />
-            <meta name="viewport" content="width=device-width, initial-scale=1" />
-            <title>{{ title }}</title>
-            <link rel="stylesheet" href="/static/css/styles.css">
-          </head>
-          <body class="theme-{{ dark_mode }}">
-            <div class="page-shell">
-              <div class="topbar">
-                <h1 class="page-title">Milestones</h1>
-                <form method="post" action="/theme/toggle" class="theme-toggle-form">
-                  <button type="submit" class="theme-toggle-btn">
-                    {{ 'Light mode' if dark_mode == 'dark' else 'Dark mode' }}
-                  </button>
-                </form>
-              </div>
-              <nav>
-                <a href="/">Home</a> |
-                <a href="/dashboard">Dashboard</a> |
-                <a href="/activities">Activities</a> |
-                <a href="/goals">Goals</a> |
-                <a href="/profile">Profile</a>
-              </nav>
-              <hr>
-              {{ messages | safe }}
-              {{ body | safe }}
-            </div>
-          </body>
-        </html>
-    ''', title=title, body=body, messages=messages, dark_mode=dark_mode)
-
-
 @app.route('/')
 def home():
     """Render the landing page for the Milestones app."""
@@ -444,24 +400,30 @@ def logout():
 
 @app.route('/dashboard', methods=['GET', 'POST'])
 def dashboard():
-    """Show a dashboard with summaries, funny stats, and recent activity history."""
+    """Dashboard with stats, milestones, and goals."""
     store = get_user_store()
 
     if request.method == 'POST':
         raw_value = (request.form.get('year_to_date_miles') or '').strip()
+
         try:
             store['year_to_date_miles'] = float(raw_value) if raw_value else None
+            flash('Year-to-date miles updated.', 'success')
         except ValueError:
             flash('Please enter a valid number of miles.', 'danger')
-            store['year_to_date_miles'] = None
-        else:
-            flash('Year-to-date miles updated.', 'success')
+
         return redirect(url_for('dashboard'))
 
     stats = build_dashboard_stats(store)
-    funny_stats = build_funny_stats(store)
-    return render_template('dashboard.html', stats=stats, funny_stats=funny_stats, goals=store.get('goals', []))
+    milestones = build_funny_stats(store)
 
+    return render_template(
+        'dashboard.html',
+        stats=stats,
+        milestones=milestones,
+        goals=store.get('goals', []),
+        strava_connected='strava_access_token' in session
+    )
 
 @app.route('/milestones')
 def milestones():
@@ -496,6 +458,7 @@ def activities():
                 'distance': 0,
                 'duration_seconds': 0,
                 'source': 'local',
+                'pace_text': 'n/a',
             })
             flash('Activity added.', 'success')
             update_goal_progress(store)
@@ -526,60 +489,12 @@ def activities():
                 'pace_text': format_pace_minutes_per_mile(item.get('average_speed')),
             })
 
-    rows = []
-    for index, item in enumerate(user_activities):
-        activity_name = item.get('name', 'Workout')
-        activity_type = item.get('type', 'Run')
-        activity_date = item.get('start_date', 'Unknown date')
-        distance = item.get('distance', 0)
-        duration_text = format_duration_seconds(item.get('duration_seconds')) or 'n/a'
-        source = item.get('source', 'local')
-        pace_text = item.get('pace_text')
 
-        meta_items = [
-            f'<span>Date: {activity_date}</span>',
-            f'<span>Distance: {distance} mi</span>',
-            f'<span>Duration: {duration_text}</span>',
-            f'<span>Source: {source}</span>',
-        ]
-        if pace_text:
-            meta_items.append(f'<span>Pace: {pace_text}</span>')
-
-        rows.append(f"""
-            <div class="activity-card">
-              <div class="activity-card__top">
-                <strong>{activity_name}</strong>
-                <span class="activity-tag">{activity_type}</span>
-              </div>
-              <div class="activity-card__meta">
-                {''.join(meta_items)}
-              </div>
-              <form method="post" class="activity-card__actions">
-                <input type="hidden" name="activity_index" value="{index}">
-                <input type="hidden" name="action" value="delete">
-                <button type="submit">Delete</button>
-              </form>
-            </div>
-        """)
-
-    connect_link = '<a href="/strava/connect">Connect Strava</a>' if not strava_connected else '<a href="/strava/disconnect">Disconnect Strava</a>'
-    sync_link = '<a href="/strava/sync">Sync from Strava</a>' if strava_connected else ''
-
-    body = f'''
-        <section class="panel panel--tight">
-          <div class="activity-toolbar">
-            <h2>Recent activities</h2>
-            <div>
-              {connect_link}
-              {sync_link}
-            </div>
-          </div>
-          <div class="activity-list">
-            {''.join(rows) if rows else '<p class="empty-state">No activities yet.</p>'}
-          </div>
-        </section>
-    '''
-    return page('Activities', body)
+    return render_template(
+        'activities.html',
+        activities=user_activities,
+        strava_connected=strava_connected
+    )
 
 
 @app.route('/goals', methods=['GET', 'POST'], endpoint='view_goals')

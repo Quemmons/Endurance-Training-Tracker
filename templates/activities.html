@@ -1,39 +1,121 @@
 {% extends 'base.html' %}
+
 {% block title %}Activities – Milestones{% endblock %}
+
 {% block content %}
-<div class="d-flex align-items-center justify-content-between mb-3">
-  <div>
-    <h1 class="h3 mb-0">Activities</h1>
-    <p class="text-muted">Log a workout or update existing sessions.</p>
-  </div>
-  <a class="btn btn-primary" href="{{ url_for('add_activity') }}">New activity</a>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+
+<div>
+<h1 class="h3">Activities</h1>
+<p class="text-muted">
+Your synced Strava runs.
+</p>
 </div>
+
+
+{% if strava_connected %}
+<a class="btn btn-outline-danger"
+href="{{ url_for('strava_disconnect') }}">
+Disconnect Strava
+</a>
+
+{% else %}
+
+<a class="btn btn-primary"
+href="{{ url_for('strava_connect') }}">
+Connect Strava
+</a>
+
+{% endif %}
+
+</div>
+
+
+
 <div class="row">
-  {% for activity in activities %}
-  <div class="col-md-6 mb-3">
-    <div class="card shadow-sm h-100">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-start">
-          <div>
-            <h5 class="card-title mb-1">{{ activity['activity_type'].capitalize() }}</h5>
-            <p class="text-muted mb-1">{{ activity['date_time'][:10] }} • {{ activity['distance'] }} mi • {{ activity['duration'] }} min</p>
-          </div>
-          <span class="badge bg-secondary">{{ activity['location'] or 'No location' }}</span>
-        </div>
-        <p class="card-text">{{ activity['notes'] or 'No notes recorded.' }}</p>
-      </div>
-      <div class="card-footer bg-transparent border-top-0 d-flex gap-2">
-        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('edit_activity', activity_id=activity['id']) }}">Edit</a>
-        <form method="post" action="{{ url_for('delete_activity', activity_id=activity['id']) }}" class="d-inline">
-          <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
-        </form>
-      </div>
-    </div>
-  </div>
-  {% else %}
-  <div class="col-12">
-    <div class="alert alert-info">No activities yet. Add your first workout.</div>
-  </div>
-  {% endfor %}
+
+{% for activity in activities %}
+
+<div class="col-md-6 mb-3">
+
+<div class="card shadow-sm h-100">
+
+<div class="card-body">
+
+
+<h5>
+{{ activity.name }}
+</h5>
+
+
+<p class="text-muted">
+
+{{ activity.start_date }}
+
+</p>
+
+
+<p>
+
+<strong>
+Distance:
+</strong>
+
+{{ activity.distance }} mi
+
+</p>
+
+
+<p>
+
+<strong>
+Duration:
+</strong>
+
+{{ format_duration_seconds(activity.duration_seconds) }}
+
+</p>
+
+
+{% if activity.pace_text %}
+
+<p>
+
+<strong>
+Pace:
+</strong>
+
+{{ activity.pace_text }}
+
+</p>
+
+{% endif %}
+
+
+<span class="badge bg-secondary">
+
+{{ activity.source }}
+
+</span>
+
+
 </div>
+
+</div>
+
+</div>
+
+
+{% else %}
+
+<div class="alert alert-info">
+No activities yet. Connect Strava to import runs.
+</div>
+
+{% endfor %}
+
+</div>
+
+
 {% endblock %}
