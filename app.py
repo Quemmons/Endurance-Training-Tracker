@@ -45,7 +45,7 @@ def get_user_store():
         session['guest_id'] = user_key
 
     if user_key not in user_data:
-        user_data[user_key] = {'activities': [], 'goals': [], 'year_to_date_miles': None}
+        user_data[user_key] = {'activities': [], 'goals': [], 'year_to_date_miles': None, 'next_activity_seq': 1}
 
     return user_data[user_key]
 
@@ -174,6 +174,13 @@ def normalize_activity_type(activity_type):
     return 'run'
 
 
+def next_activity_seq(store):
+    """Return the next sequence number for a new activity and advance the counter."""
+    seq = store.get('next_activity_seq', 1)
+    store['next_activity_seq'] = seq + 1
+    return seq
+
+
 def is_run_activity(activity):
     """Return True when a Strava activity should be imported into the running tracker."""
     activity_type = (activity or {}).get('type', 'Run')
@@ -181,11 +188,28 @@ def is_run_activity(activity):
 
 
 def get_yearly_total(store):
-    """Return the effective yearly mileage total, combining manual and logged activity miles."""
+    """Return the effective yearly mileage total.
+
+    If a manual year-to-date baseline has been set, the total is that baseline
+    plus the distance of any activities added *after* the baseline was entered
+    (tracked by sequence number, not clock time, so it isn't affected by
+    minute-level timestamp precision or activity deletions). Before a baseline
+    is set, this is simply the sum of all logged activity distance.
+    """
     activities = store.get('activities', [])
-    manual_total = store.get('year_to_date_miles') or 0
+    baseline = store.get('year_to_date_miles')
+    baseline_seq = store.get('year_to_date_miles_baseline_seq')
+
+    if baseline is not None and baseline_seq is not None:
+        added_since = sum(
+            float(item.get('distance', 0) or 0)
+            for item in activities
+            if item.get('seq', 0) > baseline_seq
+        )
+        return round(float(baseline) + added_since, 2)
+
     activity_total = sum(float(item.get('distance', 0) or 0) for item in activities)
-    return round(float(manual_total) + float(activity_total), 2)
+    return round(activity_total, 2)
 
 def get_weekly_total(store):
     """Return miles run in the last 7 days."""
@@ -461,6 +485,7 @@ def dashboard():
             flash('Please enter a valid number of miles.', 'danger')
             store['year_to_date_miles'] = None
         else:
+            store['year_to_date_miles_baseline_seq'] = (store.get('next_activity_seq', 1) - 1) if store['year_to_date_miles'] is not None else None
             flash('Year-to-date miles updated.', 'success')
         return redirect(url_for('dashboard'))
 
@@ -512,6 +537,7 @@ def activities():
                 'distance': round(distance, 2),
                 'duration_seconds': int(duration_minutes * 60),
                 'source': 'local',
+                'seq': next_activity_seq(store),
             })
             flash('Activity added.', 'success')
             update_goal_progress(store)
@@ -540,6 +566,7 @@ def activities():
                 'source': 'strava',
                 'strava_id': strava_id,
                 'pace_text': format_pace_minutes_per_mile(item.get('average_speed')),
+                'seq': next_activity_seq(store),
             })
 
     rows = []
@@ -739,6 +766,7 @@ def strava_sync():
             'source': 'strava',
             'strava_id': strava_id,
             'pace_text': format_pace_minutes_per_mile(item.get('average_speed')),
+            'seq': next_activity_seq(store),
         })
         count += 1
 

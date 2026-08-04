@@ -8,19 +8,6 @@
 
 <div class="row g-4">
   <div class="col-lg-8">
-    <div class="card p-3 shadow-sm mb-3">
-      <h5>Year-to-date miles</h5>
-      <p class="text-muted small mb-3">If Strava missed some runs, enter the real total here so the dashboard and goals stay accurate.</p>
-      <form method="post" class="row g-2 align-items-end">
-        <div class="col-md-8">
-          <label class="form-label">Miles run so far this year</label>
-          <input class="form-control" type="number" step="0.1" name="year_to_date_miles" value="{{ stats.year_to_date_miles if stats.year_to_date_miles is not none else '' }}">
-        </div>
-        <div class="col-md-4">
-          <button class="btn btn-primary w-100">Save</button>
-        </div>
-      </form>
-    </div>
     <div class="row g-3">
       <div class="col-md-4">
         <div class="card p-3 shadow-sm h-100">
@@ -105,5 +92,22 @@
       {% endif %}
     </div>
   </div>
+</div>
+
+<div class="card p-3 shadow-sm mt-4">
+  <h5>Year-to-date miles</h5>
+  <p class="text-muted small mb-3">
+    Set your real total miles for the year. This becomes your new baseline — any runs logged or synced from Strava
+    <em>after</em> you save this will be added on top of it. Runs from before you save won't be double-counted.
+  </p>
+  <form method="post" class="row g-2 align-items-end">
+    <div class="col-md-8">
+      <label class="form-label">Miles run so far this year</label>
+      <input class="form-control" type="number" step="0.1" name="year_to_date_miles" value="{{ stats.year_to_date_miles if stats.year_to_date_miles is not none else '' }}">
+    </div>
+    <div class="col-md-4">
+      <button class="btn btn-primary w-100">Save</button>
+    </div>
+  </form>
 </div>
 {% endblock %}
