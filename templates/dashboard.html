@@ -74,19 +74,31 @@
     <div class="card p-3 shadow-sm">
       <h5>Current goals</h5>
       {% if goals %}
-      {% for goal in goals %}
-      <div class="border rounded p-3 mb-2">
-        <div class="d-flex justify-content-between align-items-start">
-          <div>
-            <h6 class="mb-1">{{ goal.description }}</h6>
-            <p class="small text-muted mb-0">{{ goal.goal_type|capitalize }} • {{ goal.current_progress }}/{{ goal.target_value }} mi</p>
+        {% for goal in goals %}
+        <div class="border rounded p-3 mb-2">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="mb-1">{{ goal.description }}</h6>
+              <p class="small text-muted mb-0">{{ goal.goal_type|capitalize }} • {{ goal.current_progress }}/{{ goal.target_value }} mi</p>
+            </div>
+          </div>
+          <!-- Single progress wrapper instead of nested wrappers -->
+          <div class="progress mt-2" style="height: 8px;">
+            <div class="progress-bar" 
+                 data-progress="{{ goal.progress_percent | default(0) }}"
+                 style="width: var(--progress-width, 0%);">
+            </div>
           </div>
         </div>
-        <div class="progress mt-2" style="height: 8px;">
-          <div class="progress-bar" style="width: {{ goal.progress_percent }}%"></div>
-        </div>
-      </div>
-      {% endfor %}
+        {% endfor %}
+
+        <!-- Script placed outside the loop so it executes exactly once -->
+        <script>
+          document.querySelectorAll('.progress-bar[data-progress]').forEach(bar => {
+            const pct = bar.getAttribute('data-progress');
+            bar.style.setProperty('--progress-width', pct + '%');
+          });
+        </script>
       {% else %}
       <p class="text-muted mb-0">No goals yet. Add one from the goals page.</p>
       {% endif %}
