@@ -381,7 +381,11 @@ def page(title, body):
           <body>
             <div class="page-shell">
               <div class="topbar">
-                <h1 class="page-title">Milestones</h1>
+                <h1 class="page-title">
+                  <a href="/">
+                    <img src="/static/images/logo.png" alt="Milestones" class="page-logo">
+                  </a>
+                </h1>
               </div>
               <nav>
                 <a href="/">Home</a> |
