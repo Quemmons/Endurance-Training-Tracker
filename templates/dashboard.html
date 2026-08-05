@@ -54,51 +54,44 @@
 
   <div class="col-lg-4">
     <div class="card p-3 shadow-sm mb-3">
-      <h5>Milestones</h5>
-      <p class="text-muted small">See your running in ways you've probably never imagined.</p>
-      {% for stat in funny_stats %}
-      <div class="border rounded p-3 mb-3">
-        <h6 class="text-muted mb-2">{{ stat.title }}</h6>
-
-        <p class="fw-bold fs-5 mb-2">
-          {{ stat.value }}
-        </p>
-
-        <p class="small text-muted mb-0">
-          {{ stat.detail }}
-        </p>
+      <div class="d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Milestones</h5>
+        <button type="button" id="shuffle-milestones-btn" class="btn btn-sm btn-outline-secondary">🔀 Shuffle</button>
       </div>
-      {% endfor %}
+      <p class="text-muted small">See your running in ways you've probably never imagined.</p>
+      <div id="milestones-list">
+        {% for stat in funny_stats %}
+        <div class="border rounded p-3 mb-3">
+          <h6 class="text-muted mb-2">{{ stat.title }}</h6>
+
+          <p class="fw-bold fs-5 mb-2">
+            {{ stat.value }}
+          </p>
+
+          <p class="small text-muted mb-0">
+            {{ stat.detail }}
+          </p>
+        </div>
+        {% endfor %}
+      </div>
     </div>
 
     <div class="card p-3 shadow-sm">
       <h5>Current goals</h5>
       {% if goals %}
-        {% for goal in goals %}
-        <div class="border rounded p-3 mb-2">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <h6 class="mb-1">{{ goal.description }}</h6>
-              <p class="small text-muted mb-0">{{ goal.goal_type|capitalize }} • {{ goal.current_progress }}/{{ goal.target_value }} mi</p>
-            </div>
-          </div>
-          <!-- Single progress wrapper instead of nested wrappers -->
-          <div class="progress mt-2" style="height: 8px;">
-            <div class="progress-bar" 
-                 data-progress="{{ goal.progress_percent | default(0) }}"
-                 style="width: var(--progress-width, 0%);">
-            </div>
+      {% for goal in goals %}
+      <div class="border rounded p-3 mb-2">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h6 class="mb-1">{{ goal.description }}</h6>
+            <p class="small text-muted mb-0">{{ goal.goal_type|capitalize }} • {{ goal.current_progress }}/{{ goal.target_value }} mi</p>
           </div>
         </div>
-        {% endfor %}
-
-        <!-- Script placed outside the loop so it executes exactly once -->
-        <script>
-          document.querySelectorAll('.progress-bar[data-progress]').forEach(bar => {
-            const pct = bar.getAttribute('data-progress');
-            bar.style.setProperty('--progress-width', pct + '%');
-          });
-        </script>
+        <div class="progress mt-2" style="height: 8px;">
+          <div class="progress-bar" data-progress="{{ goal.progress_percent }}"></div>
+        </div>
+      </div>
+      {% endfor %}
       {% else %}
       <p class="text-muted mb-0">No goals yet. Add one from the goals page.</p>
       {% endif %}

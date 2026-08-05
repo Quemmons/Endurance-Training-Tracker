@@ -10,6 +10,7 @@ from flask import (
     Flask,
     flash,
     get_flashed_messages,
+    jsonify,
     redirect,
     render_template,
     render_template_string,
@@ -363,12 +364,11 @@ def build_funny_stats(store):
 
 
 def page(title, body):
-    """Render the shared page shell with navigation, flash messages, and theme support."""
+    """Render the shared page shell with navigation and flash messages."""
     messages = ''.join(
         f'<p class="{category}">{message}</p>'
         for category, message in get_flashed_messages(with_categories=True)
     )
-    dark_mode = 'dark' if session.get('dark_mode') else 'light'
     return render_template_string('''
         <!doctype html>
         <html>
@@ -378,15 +378,10 @@ def page(title, body):
             <title>{{ title }}</title>
             <link rel="stylesheet" href="/static/css/styles.css">
           </head>
-          <body class="theme-{{ dark_mode }}">
+          <body>
             <div class="page-shell">
               <div class="topbar">
                 <h1 class="page-title">Milestones</h1>
-                <form method="post" action="/theme/toggle" class="theme-toggle-form">
-                  <button type="submit" class="theme-toggle-btn">
-                    {{ 'Light mode' if dark_mode == 'dark' else 'Dark mode' }}
-                  </button>
-                </form>
               </div>
               <nav>
                 <a href="/">Home</a> |
@@ -401,7 +396,7 @@ def page(title, body):
             </div>
           </body>
         </html>
-    ''', title=title, body=body, messages=messages, dark_mode=dark_mode)
+    ''', title=title, body=body, messages=messages)
 
 
 @app.route('/')
@@ -492,6 +487,13 @@ def dashboard():
     stats = build_dashboard_stats(store)
     funny_stats = build_funny_stats(store)
     return render_template('dashboard.html', stats=stats, funny_stats=funny_stats, goals=store.get('goals', []))
+
+
+@app.route('/dashboard/milestones/shuffle')
+def shuffle_milestones():
+    """Return a fresh set of random fun-fact milestones as JSON, for the Shuffle button."""
+    store = get_user_store()
+    return jsonify(stats=build_funny_stats(store))
 
 
 @app.route('/milestones')
@@ -783,13 +785,6 @@ def strava_disconnect():
     session.pop('strava_oauth_state', None)
     flash('Strava disconnected.', 'info')
     return redirect(url_for('activities'))
-
-
-@app.route('/theme/toggle', methods=['POST'])
-def toggle_theme():
-    """Switch between light and dark mode for the current session."""
-    session['dark_mode'] = not session.get('dark_mode', False)
-    return redirect(request.referrer or url_for('home'))
 
 
 if __name__ == '__main__':

@@ -28,12 +28,6 @@ body .btn-outline-primary {
   border: 1px solid #67A686 !important;
 }
 
-/* Dark mode overrides */
-body.theme-dark {
-  background: #0f1115;
-  color: #67A686;
-}
-
 /* Main layout and navigation shell */
 .page-shell {
   max-width: 1000px;
@@ -47,50 +41,6 @@ body.theme-dark {
   align-items: center;
   gap: 1rem;
   margin-bottom: 0.75rem;
-}
-
-.theme-toggle-form {
-  margin: 0;
-}
-
-.theme-toggle-btn {
-  border: 1px solid #67A686;
-  background: #67A686;
-  color: #000000;
-  border-radius: 999px;
-  padding: 0.45rem 0.8rem;
-  cursor: pointer;
-}
-
-body.theme-dark .panel,
-body.theme-dark .goal-card,
-body.theme-dark .activity-card {
-  background: #1a1d24;
-  border-color: #67A686;
-  color: #f5f5f5;
-}
-
-body.theme-dark .activity-form input {
-  background: #2a2d35;
-  color: #f5f5f5;
-  border-color: #67A686;
-}
-
-body.theme-dark .activity-form label {
-  color: #f5f5f5;
-}
-
-body.theme-dark nav a {
-  color: #67A686;
-}
-
-body.theme-dark .activity-card__meta,
-body.theme-dark .empty-state {
-  color: #d9d9d9;
-}
-
-body.theme-dark .activity-card__top strong {
-  color: #f5f5f5;
 }
 
 .section-title {

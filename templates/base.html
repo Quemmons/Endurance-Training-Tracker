@@ -9,15 +9,10 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     {% block head %}{% endblock %}
   </head>
-  <body class="theme-{{ 'dark' if session.get('dark_mode') else 'light' }}">
+  <body>
     <div class="page-shell">
       <div class="topbar">
         <h1 class="page-title">Milestones</h1>
-        <form method="post" action="{{ url_for('toggle_theme') }}" class="theme-toggle-form">
-          <button type="submit" class="theme-toggle-btn">
-            {{ 'Light mode' if session.get('dark_mode') else 'Dark mode' }}
-          </button>
-        </form>
       </div>
       <!-- Main navigation. The links change depending on whether the user is logged in. -->
       <nav>
