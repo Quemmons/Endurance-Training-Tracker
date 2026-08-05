@@ -10,7 +10,6 @@ from flask import (
     Flask,
     flash,
     get_flashed_messages,
-    jsonify,
     redirect,
     render_template,
     render_template_string,
@@ -382,17 +381,22 @@ def page(title, body):
             <div class="page-shell">
               <div class="topbar">
                 <h1 class="page-title">
-                  <a href="/">
+                  <a href="{{ '/dashboard' if session.get('user_id') else '/' }}">
                     <img src="/static/images/logo.png" alt="Milestones" class="page-logo">
                   </a>
                 </h1>
               </div>
               <nav>
-                <a href="/">Home</a> |
+                {% if session.get('user_id') %}
                 <a href="/dashboard">Dashboard</a> |
                 <a href="/activities">Activities</a> |
                 <a href="/goals">Goals</a> |
-                <a href="/profile">Profile</a>
+                <a href="/profile">Profile</a> |
+                <a href="/logout">Logout</a>
+                {% else %}
+                <a href="/login">Login</a> |
+                <a href="/register">Register</a>
+                {% endif %}
               </nav>
               <hr>
               {{ messages | safe }}
@@ -491,13 +495,6 @@ def dashboard():
     stats = build_dashboard_stats(store)
     funny_stats = build_funny_stats(store)
     return render_template('dashboard.html', stats=stats, funny_stats=funny_stats, goals=store.get('goals', []))
-
-
-@app.route('/dashboard/milestones/shuffle')
-def shuffle_milestones():
-    """Return a fresh set of random fun-fact milestones as JSON, for the Shuffle button."""
-    store = get_user_store()
-    return jsonify(stats=build_funny_stats(store))
 
 
 @app.route('/milestones')
