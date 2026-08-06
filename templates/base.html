@@ -13,9 +13,7 @@
     <div class="page-shell">
       <div class="topbar">
         <h1 class="page-title">
-          <a href="{{ url_for('dashboard') if session.get('user_id') else url_for('home') }}">
-            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Milestones" class="page-logo">
-          </a>
+          <a href="{{ url_for('dashboard') if session.get('user_id') else url_for('home') }}">Milestones</a>
         </h1>
       </div>
       <!-- Main navigation. The links change depending on whether the user is logged in. -->

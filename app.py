@@ -381,9 +381,7 @@ def page(title, body):
             <div class="page-shell">
               <div class="topbar">
                 <h1 class="page-title">
-                  <a href="{{ '/dashboard' if session.get('user_id') else '/' }}">
-                    <img src="/static/images/logo.png" alt="Milestones" class="page-logo">
-                  </a>
+                  <a href="{{ '/dashboard' if session.get('user_id') else '/' }}">Milestones</a>
                 </h1>
               </div>
               <nav>

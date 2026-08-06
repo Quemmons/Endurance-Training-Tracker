@@ -95,13 +95,16 @@ h1 {
 
 .page-title a {
   display: inline-block;
-  line-height: 0;
-}
-
-.page-logo {
-  height: 56px;
-  width: auto;
-  display: block;
+  background: #67A686;
+  color: #000000;
+  padding: 1rem 2rem;
+  border-radius: 999px;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border: 2px solid #67A686;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  text-decoration: none;
 }
 
 nav {
