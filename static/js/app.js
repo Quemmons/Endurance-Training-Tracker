@@ -1,3 +1,12 @@
+// Apply goal progress bar widths from data-progress attributes.
+// (Kept separate from the chart-loading listener below so it always runs,
+// even when there's no dashboardDataUrl for the charts.)
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.progress-bar[data-progress]').forEach(function (el) {
+    el.style.width = el.dataset.progress + '%';
+  });
+});
+
 // Wait for the page to finish loading before drawing the dashboard charts.
 document.addEventListener('DOMContentLoaded', function () {
   // The page provides a JSON endpoint for chart data. If it is missing, stop here.
