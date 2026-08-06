@@ -520,30 +520,6 @@ def activities():
             update_goal_progress(store)
             return redirect(url_for('activities'))
 
-        if request.form.get('name'):
-            try:
-                distance = float(request.form.get('distance') or 0)
-            except ValueError:
-                distance = 0
-
-            try:
-                duration_minutes = float(request.form.get('duration_minutes') or 0)
-            except ValueError:
-                duration_minutes = 0
-
-            user_activities.append({
-                'name': request.form.get('name'),
-                'type': 'Run',
-                'start_date': datetime.utcnow().strftime('%Y-%m-%d %H:%M'),
-                'distance': round(distance, 2),
-                'duration_seconds': int(duration_minutes * 60),
-                'source': 'local',
-                'seq': next_activity_seq(store),
-            })
-            flash('Activity added.', 'success')
-            update_goal_progress(store)
-            return redirect(url_for('activities'))
-
     # When the page loads, show Strava-connected activities and the recent activity list.
     strava_connected = 'strava_access_token' in session
     update_goal_progress(store)
@@ -610,23 +586,6 @@ def activities():
     sync_link = '<a href="/strava/sync">Sync from Strava</a>' if strava_connected else ''
 
     body = f'''
-        <section class="panel panel--tight">
-          <h2>Log a run</h2>
-          <form method="post" class="activity-form">
-            <input type="hidden" name="action" value="add">
-            <label>Name
-              <input type="text" name="name" placeholder="Morning Run" required>
-            </label>
-            <label>Distance (mi)
-              <input type="number" step="0.01" min="0" name="distance" placeholder="3.1">
-            </label>
-            <label>Duration (minutes)
-              <input type="number" step="1" min="0" name="duration_minutes" placeholder="30">
-            </label>
-            <button type="submit">Add activity</button>
-          </form>
-        </section>
-
         <section class="panel panel--tight">
           <div class="activity-toolbar">
             <h2>Recent activities</h2>
